@@ -4,7 +4,17 @@ Bir sunucunun **hangi yöntemle, hangi sıklıkta, hangi pencerede, ne kadar sak
 tek yerden takip etmek için yerel çalışan bir web uygulaması. Kısa dönemli bir backup taşıma projesi için tasarlandı:
 mevcut (NetBackup) politikasını Excel'den alır, görselleştirir, raporlar ve taşıma ilerlemesini izler.
 
-## Kurulum (macOS)
+> [!IMPORTANT]
+> **Güncelleme için tekrar `git clone` yapmayın.** Kurulum bir kez yapılır; sonraki tüm güncellemeler için
+> uygulama klasöründe şunu çalıştırmanız yeterli:
+>
+> ```bash
+> ./scripts/update.sh
+> ```
+>
+> Verileriniz uygulama klasöründen ayrı (`~/Library/Application Support/vbackup/`) tutulduğu için güncelleme veriyi etkilemez.
+
+## Kurulum (macOS) — yalnızca ilk sefer
 
 Gereksinim: **Node.js 22.13 veya üzeri** (`brew install node`). Başka bir veritabanı ya da servis gerekmez.
 
