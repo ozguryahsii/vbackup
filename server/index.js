@@ -149,6 +149,27 @@ app.delete('/api/servers/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// Toplu silme: { ids: [] } — işlemden önce veritabanının kopyası alınır
+app.post('/api/servers/bulk-delete', wrap((req, res) => {
+  const ids = [...new Set((req.body.ids || []).map(Number).filter(Boolean))];
+  if (!ids.length) return res.status(400).json({ error: 'Silinecek sunucu seçilmedi' });
+  const backup = snapshot('toplu-silme-oncesi');
+  const get = db.prepare('SELECT hostname FROM servers WHERE id = ?');
+  const del = db.prepare('DELETE FROM servers WHERE id = ?');
+  const deleted = tx(() => {
+    const names = [];
+    for (const id of ids) {
+      const s = get.get(id);
+      if (!s) continue;
+      del.run(id);
+      audit('server', id, 'delete', `${s.hostname} silindi (toplu silme)`);
+      names.push(s.hostname);
+    }
+    return names;
+  });
+  res.json({ deleted: deleted.length, hostnames: deleted, backup: path.basename(backup) });
+}));
+
 // ---------- Policy'ler ----------
 app.get('/api/policies', (req, res) => {
   const data = loadAll(sysOf(req.query));

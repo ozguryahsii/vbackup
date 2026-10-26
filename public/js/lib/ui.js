@@ -183,6 +183,11 @@ export class DataTable {
       return;
     }
     if (e.target.closest('a, button, input, select')) return;
+    if (this.selectable && e.target.closest('td') === tr.firstElementChild) {
+      this.selected.has(row[this.rowKey]) ? this.selected.delete(row[this.rowKey]) : this.selected.add(row[this.rowKey]);
+      this.render(); this.onSelect?.(this.selected);
+      return;
+    }
     this.onRowClick?.(row, e);
   }
 }
