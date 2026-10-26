@@ -311,12 +311,6 @@ app.delete('/api/exceptions/:id', (req, res) => {
 });
 
 // ---------- Ayarlar ----------
-app.get('/api/settings/general-policy', (req, res) => res.json({ text: getSetting('general_policy', '') }));
-app.put('/api/settings/general-policy', (req, res) => {
-  setSetting('general_policy', String(req.body.text || ''));
-  audit('system', null, 'update', 'Genel politika metni güncellendi');
-  res.json({ ok: true });
-});
 app.put('/api/settings', (req, res) => {
   if ('company_name' in req.body) setSetting('company_name', String(req.body.company_name || ''));
   res.json({ ok: true });
@@ -386,7 +380,6 @@ app.use((err, req, res, next) => {
 // Önceki sürümle içe aktarılmış metinlerdeki çalışma notlarını bir kez temizle
 if (getSetting('text_cleanup_v1') !== '1') {
   tx(() => {
-    setSetting('general_policy', cleanText(getSetting('general_policy', '')));
     const upd = db.prepare('UPDATE exceptions SET text = ? WHERE id = ?');
     for (const e of db.prepare('SELECT id, text FROM exceptions').all()) {
       const t = cleanText(e.text);

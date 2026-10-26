@@ -6,7 +6,7 @@ export function render(view) {
   view.innerHTML = `<div class="setup card card-pad">
     <h1>Hoş geldiniz</h1>
     <p class="text-2">Başlamak için yedekleme politikası Excel dosyasını yükleyin. Dosyadaki <strong>Detay (Sunucu-Policy-Schedule)</strong>,
-    <strong>Policy Listesi</strong>, <strong>export</strong> (envanter), <strong>İstisnalar ve Notlar</strong> ve <strong>Genel Politika</strong>
+    <strong>Policy Listesi</strong>, <strong>export</strong> (envanter) ve <strong>İstisnalar ve Notlar</strong>
     sayfaları okunur; diğer tüm görünümler bu verilerden otomatik hesaplanır.</p>
     <div class="drop mt" id="drop">${icon('upload', 28)}<p style="margin:8px 0 0"><strong>Excel dosyasını sürükleyin</strong> ya da tıklayıp seçin</p><p class="small muted" style="margin:4px 0 0">.xlsx</p></div>
     <p class="small muted mt">Veriler uygulama klasöründen ayrı, kalıcı olarak şu dosyada tutulur: <code>${esc(state.meta.dbPath)}</code>. Uygulamayı güncellemek ya da yeniden kurmak veriyi silmez.</p>

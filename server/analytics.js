@@ -1,5 +1,5 @@
 // Ham tablolardan türetilen görünümler: sunucu bazlı politika, istatistikler, riskler, takvim
-import { db, getSetting } from './db.js';
+import { db } from './db.js';
 import {
   category, describeSchedule, describeWhen, describeWindows, retentionText, serverRpoHours, rpoBucket,
   RPO_BUCKETS, runsOn, windowsOn, windowRanges, hhmm, isoDate, DAYS_SHORT, weekOfMonth,
@@ -413,8 +413,4 @@ export function findings(filters = {}) {
     list.filter(s => s.mig_target_date && s.mig_target_date < isoDate(new Date()) &&
       !['Taşındı', 'Doğrulandı', 'Kapsam dışı'].includes(s.mig_status)).map(s => row(s, `${s.mig_target_date} · ${s.mig_status}`)));
   return rules;
-}
-
-export function generalPolicyText() {
-  return getSetting('general_policy', '');
 }

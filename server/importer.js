@@ -119,7 +119,7 @@ export async function importInventory(buffer) {
   return res;
 }
 
-// Tam içe aktarım: politika özeti çalışma kitabı (Detay + Policy Listesi + export + İstisnalar + Genel Politika)
+// Tam içe aktarım: politika özeti çalışma kitabı (Detay + Policy Listesi + export + İstisnalar)
 export async function importPolicyWorkbook(buffer, { replace = true } = {}) {
   const wb = await loadWorkbook(buffer);
   const detayWs = findSheet(wb, ['Detay (Sunucu-Policy-Schedule)'], ['Policy Name', 'Schedule', 'Kaynak satır (AGO.xlsx)']);
@@ -132,7 +132,6 @@ export async function importPolicyWorkbook(buffer, { replace = true } = {}) {
   const invRows = sheetRows(findSheet(wb, ['export'], ['Hostname', 'IP Adresi']));
   const serverRows = sheetRows(findSheet(wb, ['Sunucu Bazlı Politika'], ['Sunucu (kısa ad)']));
   const excRows = sheetRows(findSheet(wb, ['İstisnalar ve Notlar'], ['İstisna / Not']));
-  const genelWs = findSheet(wb, ['Genel Politika']);
 
   if (replace && db.prepare('SELECT COUNT(*) c FROM servers').get().c) snapshot('import-oncesi');
 
@@ -217,11 +216,6 @@ export async function importPolicyWorkbook(buffer, { replace = true } = {}) {
       excCount++;
     }
 
-    if (genelWs) {
-      const lines = [];
-      genelWs.eachRow(row => { const t = cellText(row.getCell(1).value); if (t) lines.push(t); });
-      setSetting('general_policy', cleanText(lines.join('\n')));
-    }
     setSetting('imported_at', new Date().toISOString());
 
     return {

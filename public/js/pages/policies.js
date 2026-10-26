@@ -1,22 +1,15 @@
 import { api, state, withSystem } from '../lib/api.js';
-import { esc, DataTable, options, icon, toast, trLower, debounce } from '../lib/ui.js';
+import { esc, DataTable, options, icon, trLower, debounce } from '../lib/ui.js';
 import { catColor } from '../lib/charts.js';
 import { CATEGORY_LABELS } from '../lib/schedule.js';
 import { navigate } from '../app.js';
 
-export async function render(view, { match, params }) {
-  const tab = match[1] === 'general' ? 'general' : 'list';
+export async function render(view, { params }) {
   view.innerHTML = `<div class="page-head"><div><h1>Politikalar</h1>
     <p>Backup policy tanımları: hangi sunucular, hangi yöntemle, hangi schedule'larla (sıklık, pencere, saklama, kaset) yedekleniyor. Yeni policy'lerde istemciler Envanter'den seçilir.</p></div>
     <div class="actions"><a class="btn" href="#/reports/policy">${icon('download', 16)}Dışa aktar</a><a class="btn primary" href="#/policy/new">${icon('plus', 16)}Yeni policy</a></div></div>
-    <div class="tabs"><button data-tab="list" class="${tab === 'list' ? 'on' : ''}">Policy Listesi</button><button data-tab="general" class="${tab === 'general' ? 'on' : ''}">Genel Politika Metni</button></div>
     <div id="tab"></div>`;
-  view.querySelector('.tabs').addEventListener('click', e => {
-    const b = e.target.closest('[data-tab]');
-    if (b) navigate(b.dataset.tab === 'general' ? '#/policies/general' : '#/policies');
-  });
   const el = view.querySelector('#tab');
-  if (tab === 'general') return general(el);
   return list(el, params);
 }
 
@@ -52,28 +45,4 @@ async function list(el, params) {
   const fl = el.querySelector('.filters');
   fl.addEventListener('change', e => { if (e.target.name) { f[e.target.name] = e.target.value; apply(); } });
   fl.querySelector('[name=q]').addEventListener('input', debounce(e => { f.q = e.target.value; apply(); }, 150));
-}
-
-async function general(el) {
-  const { text } = await api.get('/api/settings/general-policy');
-  el.innerHTML = `<div class="grid g2">
-    <section class="card"><div class="card-head"><div><h3>Düzenle</h3><p>Numaralı satırlar ("1. …") raporlarda başlık olarak biçimlenir. Madde işaretleri için "•" kullanın.</p></div>
-      <button class="btn primary sm" data-save>${icon('check', 14)}Kaydet</button></div>
-      <div class="card-body"><textarea id="gp" rows="30" style="font-size:13px">${esc(text)}</textarea></div></section>
-    <section class="card"><div class="card-head"><div><h3>Önizleme</h3><p>Genel Politika raporu (Excel/PDF) bu metinle oluşturulur.</p></div></div>
-      <div class="card-body" id="pv" style="max-height:70vh;overflow:auto"></div></section></div>`;
-  const pv = el.querySelector('#pv');
-  const draw = () => {
-    pv.innerHTML = el.querySelector('#gp').value.split('\n').filter(Boolean).map((l, i) => {
-      if (i === 0) return `<h2 style="margin-bottom:8px">${esc(l)}</h2>`;
-      if (/^\d+\.\s/.test(l)) return `<h3 style="margin:16px 0 6px;color:var(--accent)">${esc(l)}</h3>`;
-      return `<p style="margin:4px 0" class="${l.startsWith('•') ? '' : 'text-2'}">${esc(l)}</p>`;
-    }).join('');
-  };
-  draw();
-  el.querySelector('#gp').addEventListener('input', debounce(draw, 150));
-  el.querySelector('[data-save]').addEventListener('click', async () => {
-    await api.put('/api/settings/general-policy', { text: el.querySelector('#gp').value });
-    toast('Genel politika metni kaydedildi');
-  });
 }

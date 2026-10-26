@@ -3,7 +3,7 @@ import { esc, icon, options, fmtNum, debounce } from '../lib/ui.js';
 
 // Hangi rapor hangi filtreleri destekler
 const FILTERS = {
-  genel: [], ozet: [],
+  ozet: [],
   sunucu: ['q', 'environment', 'criticality', 'policy_type', 'tape', 'mig_status'],
   kaset: ['q', 'environment', 'policy_type', 'active'],
   detay: ['q', 'environment', 'policy_type', 'active', 'tape'],
@@ -61,11 +61,6 @@ export async function render(view, { match }) {
     view.querySelector('#rd').textContent = `${rep.description} · ${fmtNum(rep.total)} kayıt${rep.total > rep.rows.length ? ` (önizlemede ilk ${rep.rows.length})` : ''}`;
     view.querySelector('#dx').href = withSystem(`/api/reports/${current}`, { ...params(), format: 'xlsx' });
     view.querySelector('#dp').href = withSystem(`/api/reports/${current}`, { ...params(), format: 'pdf' });
-    if (current === 'genel') {
-      view.querySelector('#prev').innerHTML = `<div style="max-width:900px">${rep.rows.map((r, i) => i === 0 ? `<h2>${esc(r.line)}</h2>` : /^\d+\.\s/.test(r.line) ? `<h3 style="margin:16px 0 6px;color:var(--accent)">${esc(r.line)}</h3>` : `<p style="margin:4px 0">${esc(r.line)}</p>`).join('')}
-        <p class="small muted mt"><a href="#/policies/general">Metni düzenle →</a></p></div>`;
-      return;
-    }
     view.querySelector('#prev').innerHTML = `<div class="table-wrap" style="max-height:62vh"><table class="data"><thead><tr>${rep.columns.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead>
       <tbody>${rep.rows.map(r => `<tr>${rep.columns.map(c => `<td class="${String(r[c.key] ?? '').includes('\n') || String(r[c.key] ?? '').length > 60 ? 'cell-lines' : ''}">${esc(r[c.key] ?? '')}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${rep.columns.length}"><div class="empty">Kayıt yok</div></td></tr>`}</tbody></table></div>
       <p class="small muted">PDF'de okunabilirlik için yalnızca ana kolonlar yer alır; Excel çıktısı tüm kolonları içerir.</p>`;

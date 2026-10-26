@@ -78,11 +78,11 @@ Ayarlar → “Veritabanı yedeğini indir” ile istediğiniz an kopya indirebi
 | Menü | Ne işe yarar |
 |---|---|
 | **Gösterge Paneli** | Kapsam, kaset, policy, kritik bulgu ve taşıma KPI'ları; ortama göre kapsam, RPO dağılımı, bugün çalışacak yedekler, son değişiklikler. |
-| **İstatistikler** | Excel sayfalarına karşılık gelen sekmeler: Genel Politika, Sunucu Bazlı, Kaset (SLP), Yedek Pencereleri (gün × saat yoğunluk haritası), Policy, Taşıma. Her grafik tablo görünümüne çevrilebilir; çubuklara tıklayınca ilgili sunucu listesine gidilir. |
+| **İstatistikler** | Excel sayfalarına karşılık gelen sekmeler: Genel Bakış, Sunucu Bazlı, Kaset (SLP), Yedek Pencereleri (gün × saat yoğunluk haritası), Policy, Taşıma. Her grafik tablo görünümüne çevrilebilir; çubuklara tıklayınca ilgili sunucu listesine gidilir. |
 | **Yedek Takvimi** | Ay takvimi: her gün kaç sunucunun Full / Incremental / Log / Kaset yedeği var. Bir güne tıklayınca o gün çalışacak schedule'lar, pencereleri ve sunucuları. |
 | **Envanter** | Tüm sunucular (CMDB export + policy'lerde geçen sunucular), filtreler (ortam, kritiklik, yedek var/yok, kaset, RPO…), sunucu ekleme, envanter dosyasıyla güncelleme. |
 | **Sunucu kartı** | “Bu sunucu nasıl yedekleniyor?” cevabı (yöntem, Full, Incr/Log, kaset, RPO, geri dönüş derinliği), haftalık pencere zaman çizelgesi, aylık desen matrisi, policy'ler, notlar, taşıma bilgisi, değişiklik geçmişi. |
-| **Politikalar** | Policy listesi ve editörü: istemciler envanterden seçilir; schedule'lar görsel takvim ızgarası (gün × ayın haftası), frekans, pencere, saklama ve kaset (SLP) ile tanımlanır; Türkçe özet canlı üretilir. Hazır şablonlar (VM günlük, aylık SLP, Oracle RMAN/ARCH, MS-SQL…). “Genel Politika” metni de buradan düzenlenir. |
+| **Politikalar** | Policy listesi ve editörü: istemciler envanterden seçilir; schedule'lar görsel takvim ızgarası (gün × ayın haftası), frekans, pencere, saklama ve kaset (SLP) ile tanımlanır; Türkçe özet canlı üretilir. Hazır şablonlar (VM günlük, aylık SLP, Oracle RMAN/ARCH, MS-SQL…). |
 | **Taşıma Takibi** | Sunucu bazında dalga, durum, hedef tarih, sorumlu, hedef çözüm, ilk başarılı yedek ve test restore; toplu güncelleme; gecikme ve “restore testi bekliyor” uyarıları. |
 | **Uyum & Riskler** | Otomatik kurallar: yedeksiz aktif PROD sunucu, yedeksiz yüksek kritik sunucu, kasete çıkmayan yüksek kritik sunucu, RPO'su 1 günden uzun kritik sunucu, işletimden çıkmış ama yedeklenen sunucu, envanterde olmayan istemci, yalnızca pasif policy, gecikmiş taşıma… |
 | **Raporlar** | Excel sayfalarıyla aynı yapıda raporlar; filtreli önizleme; **Excel** ve **PDF** çıktısı; “Tüm raporlar” tek dosyada. |
@@ -107,7 +107,7 @@ ekranları (istatistik, rapor, takvim) mevcut ya da hedef sisteme göre görebil
 
 Tam içe aktarma şu sayfaları okur (sayfa adları ya da başlıkları ile bulunur):
 `Detay (Sunucu-Policy-Schedule)`, `Policy Listesi`, `export` (envanter), `Sunucu Bazlı Politika` (sunucu görevi),
-`İstisnalar ve Notlar`, `Genel Politika`. Envanter güncellemesi için `Hostname` kolonu olan herhangi bir sayfa yeterlidir
+`İstisnalar ve Notlar`. Envanter güncellemesi için `Hostname` kolonu olan herhangi bir sayfa yeterlidir
 (`Domain Name`, `IP Adresi`, `Ortam`, `Platform`, `vCPU`, `RAM (GB)`, `Disk (GB)`, `Sunucu Durumu`, `Açıklama`, `Kritiklik Seviyesi`, `OS Ref` …).
 
 ## Geliştirme

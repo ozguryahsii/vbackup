@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import PdfPrinter from 'pdfmake';
 import { createRequire } from 'node:module';
 import { db, getSetting } from './db.js';
-import { serverSummaries, loadAll, stats, findings, generalPolicyText, coverageState } from './analytics.js';
+import { serverSummaries, loadAll, stats, findings, coverageState } from './analytics.js';
 import { typeLabel, retentionText, rpoText, describeWhen, describeWindows } from '../public/js/lib/schedule.js';
 
 const require = createRequire(import.meta.url);
@@ -42,7 +42,6 @@ function policyFilter(f) {
 }
 
 export const REPORTS = [
-  { id: 'genel', title: 'Genel Politika', description: 'Politikanın genel özeti, yöntemler, desenler ve güncel sayılar.' },
   { id: 'sunucu', title: 'Sunucu Bazlı Politika', description: 'Her sunucu için hangi yöntemle, hangi sıklıkta, ne kadar saklamayla yedeklendiği.' },
   { id: 'kaset', title: 'Kasete Çıkan Sunucular', description: 'SLP (kaset) schedule\'ı olan sunucular ve kasete çıkış takvimi.' },
   { id: 'detay', title: 'Detay (Sunucu-Policy-Schedule)', description: 'Sunucu × policy × schedule kırılımında tam liste.' },
@@ -281,16 +280,6 @@ const SEV = { critical: 'Kritik', serious: 'Yüksek', warning: 'Uyarı', info: '
 export function reportData(id, filters) {
   const def = REPORTS.find(r => r.id === id);
   if (!def) throw Object.assign(new Error('Bilinmeyen rapor'), { status: 404 });
-  if (id === 'genel') {
-    const k = stats(filters.system ? { system: filters.system } : {}).kpi;
-    return {
-      ...def,
-      text: generalPolicyText(),
-      columns: [{ key: 'line', label: 'Genel Politika', width: 150, pdf: true }],
-      rows: generalPolicyText().split('\n').map(line => ({ line })),
-      kpi: k,
-    };
-  }
   return { ...def, ...buildReport(id, filters) };
 }
 
@@ -303,16 +292,6 @@ function filterText(f) {
 function addSheet(wb, rep) {
   const name = rep.title.replace(/[\\/?*[\]:]/g, '-').slice(0, 31);
   const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
-  if (rep.id === 'genel') {
-    ws.columns = [{ header: 'VBACKUP – YEDEKLEME POLİTİKASI', key: 'line', width: 160 }];
-    ws.getRow(1).font = { bold: true, size: 13 };
-    for (const l of rep.rows) {
-      const r = ws.addRow({ line: l.line });
-      r.alignment = { wrapText: true, vertical: 'top' };
-      if (/^\d+\.\s/.test(l.line)) r.font = { bold: true, color: { argb: 'FF1C5CAB' } };
-    }
-    return ws;
-  }
   ws.columns = rep.columns.map(c => ({ header: c.label, key: c.key, width: c.width || 14 }));
   ws.addRows(rep.rows);
   const head = ws.getRow(1);
@@ -343,24 +322,6 @@ function pdfContent(rep, filters) {
     { text: rep.title, style: 'h1' },
     { text: `${rep.description}\nOluşturma: ${new Date().toLocaleString('tr-TR')}${filterText(filters) ? ' · Filtre: ' + filterText(filters) : ''} · Kayıt: ${rep.rows.length}`, style: 'meta' },
   ];
-  if (rep.id === 'genel') {
-    const k = rep.kpi;
-    content.push({
-      table: {
-        widths: ['*', '*', '*', '*'],
-        body: [[
-          kpiCell('Yedeklenen sunucu', k.covered), kpiCell('Kasete çıkan', k.tape_yes),
-          kpiCell('Aktif / pasif policy', `${k.policies_active} / ${k.policies_passive}`), kpiCell('Yedeksiz (DR hariç)', k.uncovered_non_dr),
-        ]],
-      },
-      layout: 'noBorders', margin: [0, 4, 0, 12],
-    });
-    for (const { line } of rep.rows) {
-      const heading = /^\d+\.\s/.test(line);
-      content.push({ text: pdfText(line), style: heading ? 'h2' : 'p' });
-    }
-    return content;
-  }
   const cols = rep.columns.filter(c => c.pdf);
   const total = cols.reduce((a, c) => a + (c.width || 14), 0);
   content.push({

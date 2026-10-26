@@ -7,7 +7,7 @@ export async function render(view) {
   const audit = await api.get('/api/audit?limit=500');
   view.innerHTML = `<div class="page-head"><div><h1>Ayarlar</h1><p>İçe aktarma, veritabanı yedeği, retention level tanımları ve değişiklik geçmişi.</p></div></div>
   <div class="grid g2">
-    <section class="card"><div class="card-head"><div><h3>Excel'den tam içe aktarma</h3><p>Politika özeti çalışma kitabını (Detay, Policy Listesi, export, İstisnalar, Genel Politika) yükler.</p></div></div>
+    <section class="card"><div class="card-head"><div><h3>Excel'den tam içe aktarma</h3><p>Politika özeti çalışma kitabını (Detay, Policy Listesi, export, İstisnalar) yükler.</p></div></div>
       <div class="card-body"><p class="small text-2" style="margin-top:0">Mevcut policy, sunucu, schedule ve notlar <strong>silinir</strong> ve dosyadaki verilerle yeniden oluşturulur (taşıma alanları dahil).
         İşlemden önce veritabanının otomatik bir kopyası yedek klasörüne alınır.</p>
         <button class="btn" data-full>${icon('upload', 16)}Excel seç ve içe aktar</button></div></section>

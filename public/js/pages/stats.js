@@ -7,7 +7,7 @@ import { DAYS_SHORT, CATEGORY_LABELS } from '../lib/schedule.js';
 import { showServers } from '../lib/drill.js';
 
 const TABS = [
-  { id: 'genel', label: 'Genel Politika' },
+  { id: 'genel', label: 'Genel Bakış' },
   { id: 'sunucu', label: 'Sunucu Bazlı' },
   { id: 'kaset', label: 'Kaset (SLP)' },
   { id: 'pencere', label: 'Yedek Pencereleri' },
