@@ -49,7 +49,10 @@ export function barChart(canvas, { labels, datasets, stacked = false, horizontal
   const opts = baseOptions({ stacked, horizontal });
   if (max) opts.scales[horizontal ? 'x' : 'y'].max = max;
   if (onClick) {
-    opts.onClick = (e, els) => { if (els.length) onClick(labels[els[0].index], els[0]); };
+    opts.onClick = (e, els) => { if (els.length) onClick(labels[els[0].index], { index: els[0].index, datasetIndex: els[0].datasetIndex }); };
+    opts.plugins.tooltip.callbacks.footer = () => 'Listelemek için tıklayın';
+    opts.plugins.tooltip.footerColor = css('--muted');
+    opts.plugins.tooltip.footerFont = { weight: 'normal', size: 11 };
     opts.onHover = (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; };
   }
   const chart = new Chart(canvas, {
@@ -77,10 +80,11 @@ export function donutChart(canvas, { labels, data, colors, onClick }) {
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '68%', animation: { duration: 250 },
       plugins: { legend: { display: false }, tooltip: baseOptions({}).plugins.tooltip },
-      onClick: onClick ? (e, els) => { if (els.length) onClick(labels[els[0].index]); } : undefined,
+      onClick: onClick ? (e, els) => { if (els.length) onClick(labels[els[0].index], els[0].index); } : undefined,
+      onHover: onClick ? (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; } : undefined,
     },
   });
-  chart.options.plugins.tooltip.callbacks = { label: c => ` ${c.label}: ${fmtNum(c.parsed)}` };
+  chart.options.plugins.tooltip.callbacks = { label: c => ` ${c.label}: ${fmtNum(c.parsed)}`, ...(onClick ? { footer: () => 'Listelemek için tıklayın' } : {}) };
   live.add(chart);
   return chart;
 }
@@ -100,9 +104,18 @@ export function chartCard({ id, title, sub = '', size = '', extra = '', cls = ''
 
 // Tablo görünümü verisi: { head: [], rows: [[]] }
 const tables = new Map();
-export function setChartTable(id, head, rows) { tables.set(id, { head, rows }); }
+// onCell(satır, kolon) → tıklanınca çağrılır (sayı hücreleri bağlantı olur)
+export function setChartTable(id, head, rows, onCell) { tables.set(id, { head, rows, onCell }); }
 export function bindTableToggles(root) {
   root.addEventListener('click', e => {
+    const cell = e.target.closest('[data-cell]');
+    if (cell) {
+      e.preventDefault();
+      const id = cell.closest('[id^="tb-"]').id.slice(3);
+      const [r, c] = cell.dataset.cell.split('-').map(Number);
+      tables.get(id)?.onCell?.(r, c);
+      return;
+    }
     const b = e.target.closest('[data-table-toggle]');
     if (!b) return;
     const id = b.dataset.tableToggle;
@@ -110,7 +123,7 @@ export function bindTableToggles(root) {
     const show = tb.hidden;
     if (show) {
       const t = tables.get(id);
-      tb.innerHTML = t ? `<div class="table-wrap" style="max-height:340px"><table class="data"><thead><tr>${t.head.map((h, i) => `<th class="${i ? 'num' : ''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${t.rows.map(r => `<tr>${r.map((v, i) => `<td class="${i ? 'num' : ''}">${typeof v === 'number' ? fmtNum(v) : esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<div class="empty">Veri yok</div>';
+      tb.innerHTML = t ? `<div class="table-wrap" style="max-height:340px"><table class="data"><thead><tr>${t.head.map((h, i) => `<th class="${i ? 'num' : ''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${t.rows.map((r, ri) => `<tr>${r.map((v, i) => `<td class="${i ? 'num' : ''}">${typeof v === 'number' ? (t.onCell && v ? `<a href="#" data-cell="${ri}-${i}">${fmtNum(v)}</a>` : fmtNum(v)) : esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<div class="empty">Veri yok</div>';
     }
     tb.hidden = !show;
     if (cb) cb.hidden = show;
@@ -128,14 +141,15 @@ export function seqColor(v, max) {
 const inkOn = (v, max) => (v && max && Math.ceil((v / max) * 7) >= 5 ? '#fff' : 'var(--text-2)');
 
 // grid: satır x kolon sayılar
-export function heatmapHTML(grid, rowLabels, colLabels, { showValues = true, tip, minCell = 22, colEvery = 1 } = {}) {
+// clickable: hücreler data-r/data-c taşır; sayfa .heat üzerinde tıklamayı dinler
+export function heatmapHTML(grid, rowLabels, colLabels, { showValues = true, tip, minCell = 22, colEvery = 1, clickable = false } = {}) {
   const max = Math.max(1, ...grid.flat());
   const cols = colLabels.length;
   let html = `<div class="heat" style="grid-template-columns: auto repeat(${cols}, minmax(${minCell}px, 1fr))"><div></div>`;
   html += colLabels.map((c, i) => `<div class="hh">${i % colEvery === 0 ? esc(c) : ''}</div>`).join('');
   grid.forEach((row, r) => {
     html += `<div class="hl">${esc(rowLabels[r])}</div>`;
-    html += row.map((v, c) => `<div class="hc" style="background:${seqColor(v, max)};color:${inkOn(v, max)}" data-tip="${esc(tip ? tip(r, c, v) : `${rowLabels[r]} · ${colLabels[c]}: ${fmtNum(v)}`)}">${showValues && v ? fmtNum(Math.round(v)) : ''}</div>`).join('');
+    html += row.map((v, c) => `<div class="hc${clickable && v ? ' click' : ''}" ${clickable ? `data-r="${r}" data-c="${c}"` : ''} style="background:${seqColor(v, max)};color:${inkOn(v, max)}" data-tip="${esc(tip ? tip(r, c, v) : `${rowLabels[r]} · ${colLabels[c]}: ${fmtNum(v)}`)}${clickable && v ? '\nListelemek için tıklayın' : ''}">${showValues && v ? fmtNum(Math.round(v)) : ''}</div>`).join('');
   });
   html += '</div>';
   html += `<div class="heat-scale"><span>Az</span>${[1, 2, 3, 4, 5, 6, 7].map(i => `<i style="background:var(--seq-${i})"></i>`).join('')}<span>Çok</span><span class="spacer"></span><span>En yüksek: ${fmtNum(Math.round(max))}</span></div>`;

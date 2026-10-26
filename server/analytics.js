@@ -127,22 +127,42 @@ const isHighCrit = s => /^3/.test(s.criticality || '');
 const isDR = s => /^DR$/i.test(s.environment || '');
 const isProd = s => /PROD/i.test(s.environment || '') && !/PREPROD/i.test(s.environment || '');
 
-function countBy(arr, fn) {
+// Kapsam durumu — gösterge paneli, istatistik, envanter filtresi ve raporlarda TEK tanım:
+//   covered   : en az bir aktif policy'de
+//   uncovered : yedeksiz, envanterde aktif, DR dışı  → "Yedeksiz" olarak sayılan
+//   dr        : yedeksiz, DR ortamında (çoğunlukla replikasyonla korunur; ayrı gösterilir)
+//   inactive  : yedeksiz ve envanterde aktif değil (ör. İşletimden Çıkarıldı) → istatistiklere girmez
+export function coverageState(s) {
+  if (s.covered) return 'covered';
+  if (!isActiveServer(s)) return 'inactive';
+  return isDR(s) ? 'dr' : 'uncovered';
+}
+export const NO_BACKUP_DR = 'Yedek yok (DR)';
+
+// { label: { value, ids } } biriktirici: her sayı, onu oluşturan sunucu id'leriyle birlikte döner
+function groupIds(arr, keyFn) {
   const m = new Map();
   for (const x of arr) {
-    const k = fn(x) ?? '—';
-    m.set(k, (m.get(k) || 0) + 1);
+    for (const k of [].concat(keyFn(x) ?? '—')) {
+      if (!m.has(k)) m.set(k, new Set());
+      m.get(k).add(x.id);
+    }
   }
-  return [...m].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
+  return [...m].map(([label, set]) => ({ label, value: set.size, ids: [...set] })).sort((a, b) => b.value - a.value);
 }
 
 export function stats(filters = {}) {
   const { data, list } = serverSummaries(filters);
-  // Kapsam istatistikleri envanterde aktif görünen sunucular üzerinden yapılır
-  const considered = list.filter(s => isActiveServer(s) || s.covered);
+  for (const s of list) {
+    s.coverage = coverageState(s);
+    if (s.coverage === 'dr') s.rpo_bucket = NO_BACKUP_DR;
+  }
+  // Kapsam istatistikleri envanterde aktif görünen ya da yedeği olan sunucular üzerinden yapılır
+  const considered = list.filter(s => s.coverage !== 'inactive');
   const covered = considered.filter(s => s.covered);
   const activePolicies = data.policies.filter(p => p.active);
   const allSchedules = activePolicies.flatMap(p => p.schedules.map(s => ({ ...s, policy: p })));
+  const ids = arr => arr.map(s => s.id);
 
   const byType = {};
   for (const p of data.policies) {
@@ -155,51 +175,62 @@ export function stats(filters = {}) {
     const m = new Map();
     for (const s of considered) {
       const k = s[key] || 'Belirtilmemiş';
-      if (!m.has(k)) m.set(k, { label: k, covered: 0, uncovered: 0, tape: 0 });
+      if (!m.has(k)) m.set(k, { label: k, covered: [], uncovered: [], dr: [], tape: [] });
       const o = m.get(k);
-      if (s.covered) o.covered++; else o.uncovered++;
-      if (s.tape_status === 'EVET') o.tape++;
+      o[s.coverage].push(s.id);
+      if (s.tape_status === 'EVET') o.tape.push(s.id);
     }
-    return [...m.values()].sort((a, b) => (b.covered + b.uncovered) - (a.covered + a.uncovered));
+    return [...m.values()]
+      .map(o => ({ label: o.label, covered: o.covered.length, uncovered: o.uncovered.length, dr: o.dr.length, tape: o.tape.length, ids: o }))
+      .sort((a, b) => (b.covered + b.uncovered + b.dr) - (a.covered + a.uncovered + a.dr));
   };
 
+  // Saklama süresi × yedek türü: o saklamayla yedeklenen (tekil) sunucu sayısı
   const retentionDist = {};
   for (const s of allSchedules) {
     if (s.category === 'app') continue;
     const lab = retentionText(s.retention_level, data.levels);
-    retentionDist[lab] ||= { label: lab, level: s.retention_level, full: 0, incr: 0, log: 0, tape: 0 };
-    retentionDist[lab][s.category] += s.policy.clients.length;
+    retentionDist[lab] ||= { label: lab, level: s.retention_level, sets: { full: new Set(), incr: new Set(), log: new Set(), tape: new Set() } };
+    for (const c of s.policy.clients) retentionDist[lab].sets[s.category].add(c.server_id);
   }
+  const retentionOut = Object.values(retentionDist)
+    .sort((a, b) => (levelDays(data.levels, a.level) ?? 0) - (levelDays(data.levels, b.level) ?? 0))
+    .map(r => {
+      const o = { label: r.label, level: r.level, ids: {} };
+      for (const [k, set] of Object.entries(r.sets)) { o[k] = set.size; o.ids[k] = [...set]; }
+      return o;
+    });
 
   // RPO x kritiklik matrisi
+  const rpoBuckets = [...RPO_BUCKETS, NO_BACKUP_DR];
   const critLevels = ['3-Yüksek', '2-Orta', '1-Düşük', 'Belirtilmemiş'];
-  const rpoMatrix = critLevels.map(c => ({
-    criticality: c,
-    values: RPO_BUCKETS.map(b => considered.filter(s => (s.criticality || 'Belirtilmemiş') === c && s.rpo_bucket === b).length),
-  }));
+  const rpoMatrix = critLevels.map(c => {
+    const cells = rpoBuckets.map(b => ids(considered.filter(s => (s.criticality || 'Belirtilmemiş') === c && s.rpo_bucket === b)));
+    return { criticality: c, values: cells.map(x => x.length), ids: cells };
+  });
 
-  // Full yedek günleri (sunucu-schedule sayısı)
-  const fullDays = new Array(7).fill(0);
+  // Full yedek günleri: o gün Full yedeği alınan (tekil) sunucu sayısı
+  const fullDaySets = Array.from({ length: 7 }, () => new Set());
   for (const s of allSchedules) {
     if (s.category !== 'full') continue;
     const days = new Set();
     for (let d = 0; d < 7; d++) if ((s.calendar[d] || []).length) days.add(d);
     if (!days.size && s.freq_every) for (const w of s.windows) days.add(w.d);
-    for (const d of days) fullDays[d] += s.policy.clients.length;
+    for (const d of days) for (const c of s.policy.clients) fullDaySets[d].add(c.server_id);
   }
 
-  // Kaset: ayın haftası x gün matrisi (aktif SLP schedule x istemci)
-  const tapeMatrix = [1, 2, 3, 4, 5].map(() => new Array(7).fill(0));
+  // Kaset: ayın haftası x gün matrisi — o gün kasete çıkan (tekil) sunucu
+  const tapeSets = [1, 2, 3, 4, 5].map(() => Array.from({ length: 7 }, () => new Set()));
   for (const s of allSchedules) {
     if (s.tape !== 'SLP') continue;
-    for (let d = 0; d < 7; d++) for (const w of s.calendar[d] || []) tapeMatrix[w - 1][d] += s.policy.clients.length;
+    for (let d = 0; d < 7; d++) for (const w of s.calendar[d] || []) for (const c of s.policy.clients) tapeSets[w - 1][d].add(c.server_id);
   }
 
-  const topPolicies = activePolicies.map(p => ({ label: p.name, value: p.clients.length }))
+  const topPolicies = activePolicies.map(p => ({ id: p.id, label: p.name, value: p.clients.length, ids: p.clients.map(c => c.server_id) }))
     .sort((a, b) => b.value - a.value).slice(0, 15);
 
-  const migration = countBy(list.filter(s => s.covered || s.mig_wave || (s.mig_status && s.mig_status !== 'Planlanmadı')), s => s.mig_status);
-  const methodDist = countBy(covered.flatMap(s => s.methods.map(m => ({ m }))), x => x.m.replace(/ – instance .*/, ''));
+  const migration = groupIds(list.filter(s => s.covered || s.mig_wave || (s.mig_status && s.mig_status !== 'Planlanmadı')), s => s.mig_status || 'Planlanmadı');
+  const methodDist = groupIds(covered, s => [...new Set(s.methods.map(m => m.replace(/ – instance .*/, '')))]);
 
   return {
     kpi: {
@@ -207,27 +238,37 @@ export function stats(filters = {}) {
       servers_considered: considered.length,
       covered: covered.length,
       uncovered: considered.length - covered.length,
-      uncovered_non_dr: considered.filter(s => !s.covered && !isDR(s)).length,
+      uncovered_non_dr: considered.filter(s => s.coverage === 'uncovered').length,
+      uncovered_dr: considered.filter(s => s.coverage === 'dr').length,
       tape_yes: covered.filter(s => s.tape_status === 'EVET').length,
       passive_only: list.filter(s => !s.covered && s.passive_count > 0).length,
       policies_active: activePolicies.length,
       policies_passive: data.policies.length - activePolicies.length,
       schedules: allSchedules.length,
-      high_crit_uncovered: considered.filter(s => !s.covered && isHighCrit(s) && !isDR(s)).length,
+      high_crit_uncovered: considered.filter(s => s.coverage === 'uncovered' && isHighCrit(s)).length,
       open_notes: data.exceptions.filter(e => !e.resolved).length,
       not_in_inventory: list.filter(s => !s.in_inventory).length,
+    },
+    kpiIds: {
+      covered: ids(covered),
+      uncovered: ids(considered.filter(s => s.coverage === 'uncovered')),
+      uncovered_dr: ids(considered.filter(s => s.coverage === 'dr')),
+      high_crit_uncovered: ids(considered.filter(s => s.coverage === 'uncovered' && isHighCrit(s))),
+      tape_yes: ids(covered.filter(s => s.tape_status === 'EVET')),
     },
     policyTypes: Object.values(byType).sort((a, b) => (b.active + b.passive) - (a.active + a.passive)),
     coverageByEnv: coverageBy('environment'),
     coverageByCrit: coverageBy('criticality'),
     coverageByPlatform: coverageBy('platform'),
-    tapeStatus: countBy(considered, s => s.tape_status),
-    rpoDist: RPO_BUCKETS.map(b => ({ label: b, value: considered.filter(s => s.rpo_bucket === b).length })),
-    rpoBuckets: RPO_BUCKETS,
+    // yedeği olan sunucular (EVET + HAYIR = yedeklenen) ve yalnızca pasif policy'sinde SLP olanlar
+    tapeStatus: groupIds(considered.filter(s => s.covered || s.tape_status !== 'HAYIR'), s => s.tape_status),
+    rpoDist: rpoBuckets.map(b => { const x = ids(considered.filter(s => s.rpo_bucket === b)); return { label: b, value: x.length, ids: x }; }),
+    rpoBuckets,
     rpoMatrix,
-    retentionDist: Object.values(retentionDist).sort((a, b) => (levelDays(data.levels, a.level) ?? 0) - (levelDays(data.levels, b.level) ?? 0)),
-    fullDays: fullDays.map((v, i) => ({ label: DAYS_SHORT[i], value: v })),
-    tapeMatrix,
+    retentionDist: retentionOut,
+    fullDays: fullDaySets.map((set, i) => ({ label: DAYS_SHORT[i], value: set.size, ids: [...set] })),
+    tapeMatrix: tapeSets.map(r => r.map(set => set.size)),
+    tapeMatrixIds: tapeSets.map(r => r.map(set => [...set])),
     topPolicies,
     migration,
     methodDist,
@@ -240,26 +281,36 @@ export function stats(filters = {}) {
 export function windowHeatmap({ week = 0, kind = 'all', system } = {}) {
   const data = loadAll({ system });
   const weeks = week ? [Number(week)] : [1, 2, 3, 4, 5];
-  const grid = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  // hücre başına (gün x saat) her hafta için penceresi açık TEKİL sunucular
+  const cells = weeks.map(() => Array.from({ length: 7 * 24 }, () => new Set()));
   for (const p of data.policies) {
     if (!p.active || !p.clients.length) continue;
     for (const s of p.schedules) {
       if (s.category === 'app') continue;
       if (kind !== 'all' && s.category !== kind) continue;
-      for (const wk of weeks) {
-        const hours = new Set();
+      weeks.forEach((wk, wi) => {
         for (const w of s.windows) {
           // pencere hangi gün açılıyorsa o gün o hafta çalışıyor mu?
           const fake = dateForWeekDay(wk, w.d);
           if (!runsOn(s, fake) && !(s.freq_unit && s.freq_unit !== 'day')) continue;
           const [a, b] = windowRanges(w);
-          for (let m = Math.floor(a / 60) * 60; m < b; m += 60) hours.add(Math.floor(m / 60) % (7 * 24));
+          for (let m = Math.floor(a / 60) * 60; m < b; m += 60) {
+            const h = Math.floor(m / 60) % (7 * 24);
+            for (const c of p.clients) cells[wi][h].add(c.server_id);
+          }
         }
-        for (const h of hours) grid[Math.floor(h / 24)][h % 24] += p.clients.length / weeks.length;
-      }
+      });
     }
   }
-  return grid.map(r => r.map(v => Math.round(v * 10) / 10));
+  const grid = Array.from({ length: 7 }, (_, d) => Array.from({ length: 24 }, (_, h) =>
+    Math.round(cells.reduce((a, wk) => a + wk[d * 24 + h].size, 0) / weeks.length * 10) / 10));
+  // Tıklanınca gösterilecek liste: seçili haftada (ortalamada: herhangi bir haftada) penceresi açık sunucular
+  const ids = Array.from({ length: 7 }, (_, d) => Array.from({ length: 24 }, (_, h) => {
+    const u = new Set();
+    for (const wk of cells) for (const id of wk[d * 24 + h]) u.add(id);
+    return [...u];
+  }));
+  return { grid, ids };
 }
 
 // Belirli bir haftagünü + ayın haftası için örnek tarih (2026 Mart: 1 Mart Pazar)

@@ -22,7 +22,7 @@ export async function render(view, { params }) {
         <select name="criticality">${options(m.criticalities, f.criticality, { empty: 'Tüm kritiklikler' })}<option value="Belirtilmemiş" ${f.criticality === 'Belirtilmemiş' ? 'selected' : ''}>Belirtilmemiş</option></select>
         <select name="platform">${options(m.platforms, f.platform, { empty: 'Tüm platformlar' })}<option value="Belirtilmemiş" ${f.platform === 'Belirtilmemiş' ? 'selected' : ''}>Belirtilmemiş</option></select>
         <select name="status">${options(m.statuses, f.status, { empty: 'Tüm durumlar' })}</select>
-        <select name="covered">${options([{ value: 'yes', label: 'Yedeği var' }, { value: 'no', label: 'Yedeği yok' }], f.covered, { empty: 'Yedek: hepsi' })}</select>
+        <select name="covered">${options([{ value: 'yes', label: 'Yedeği var' }, { value: 'no', label: 'Yedeksiz (aktif, DR hariç)' }, { value: 'dr', label: 'Yedeksiz – DR' }, { value: 'inactive', label: 'Yedeksiz – aktif değil' }, { value: 'any', label: 'Yedeksiz – tümü' }], f.covered, { empty: 'Yedek: hepsi' })}</select>
         <select name="tape">${options([{ value: 'EVET', label: 'Kasete çıkıyor' }, { value: 'HAYIR', label: 'Kasete çıkmıyor' }, { value: "Sadece pasif policy'de", label: 'Sadece pasif policy\'de' }], f.tape, { empty: 'Kaset: hepsi' })}</select>
         <select name="rpo">${options(RPO_BUCKETS, f.rpo, { empty: 'RPO: hepsi' })}</select>
         <select name="source">${options([{ value: 'envanter', label: 'Envanterde' }, { value: 'policy', label: 'Sadece policy\'de' }, { value: 'manual', label: 'Manuel eklenen' }], f.source, { empty: 'Kaynak: hepsi' })}</select>
@@ -76,7 +76,7 @@ export async function render(view, { params }) {
       (!f.criticality || (s.criticality || 'Belirtilmemiş') === f.criticality) &&
       (!f.platform || (s.platform || 'Belirtilmemiş') === f.platform) &&
       (!f.status || s.status === f.status) &&
-      (!f.covered || (f.covered === 'yes' ? s.covered : !s.covered)) &&
+      (!f.covered || (f.covered === 'any' ? !s.covered : s.coverage === ({ yes: 'covered', no: 'uncovered' }[f.covered] || f.covered))) &&
       (!f.tape || s.tape_status === f.tape) &&
       (!f.rpo || s.rpo_bucket === f.rpo) &&
       (!f.source || s.source === f.source) &&

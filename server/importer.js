@@ -1,6 +1,7 @@
 // Excel (NetBackup policy özeti + CMDB envanter export'u) içe aktarımı
 import ExcelJS from 'exceljs';
 import { db, tx, audit, setSetting, snapshot } from './db.js';
+import { cleanText } from './textClean.js';
 import {
   parseFrequency, parseIncluded, parseExcluded, parseWindows, detectTape,
 } from '../public/js/lib/schedule.js';
@@ -212,14 +213,14 @@ export async function importPolicyWorkbook(buffer, { replace = true } = {}) {
       const text = e['İstisna / Not'];
       if (!text) continue;
       const host = e['Sunucu'];
-      insExc.run(!host || host === 'GENEL' ? null : serverId(host), text);
+      insExc.run(!host || host === 'GENEL' ? null : serverId(host), cleanText(text));
       excCount++;
     }
 
     if (genelWs) {
       const lines = [];
       genelWs.eachRow(row => { const t = cellText(row.getCell(1).value); if (t) lines.push(t); });
-      setSetting('general_policy', lines.join('\n'));
+      setSetting('general_policy', cleanText(lines.join('\n')));
     }
     setSetting('imported_at', new Date().toISOString());
 

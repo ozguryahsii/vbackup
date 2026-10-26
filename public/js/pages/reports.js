@@ -43,7 +43,7 @@ export async function render(view, { match }) {
       case 'policy_type': return `<select data-k="policy_type">${options(meta.policyTypes, f.policy_type, { empty: 'Tüm policy tipleri' })}</select>`;
       case 'tape': return `<select data-k="tape">${options([{ value: 'EVET', label: 'Kasete çıkan' }, { value: 'HAYIR', label: 'Kasete çıkmayan' }], f.tape, { empty: 'Kaset: hepsi' })}</select>`;
       case 'active': return `<select data-k="active">${options([{ value: 'yes', label: 'Aktif policy' }, { value: 'no', label: 'Pasif policy' }], f.active, { empty: 'Aktif + pasif' })}</select>`;
-      case 'covered': return `<select data-k="covered">${options([{ value: 'yes', label: 'Yedeği var' }, { value: 'no', label: 'Yedeği yok' }], f.covered, { empty: 'Yedek: hepsi' })}</select>`;
+      case 'covered': return `<select data-k="covered">${options([{ value: 'yes', label: 'Yedeği var' }, { value: 'no', label: 'Yedeksiz (aktif, DR hariç)' }, { value: 'dr', label: 'Yedeksiz – DR' }, { value: 'any', label: 'Yedeksiz – tümü' }], f.covered, { empty: 'Yedek: hepsi' })}</select>`;
       case 'mig_status': return `<select data-k="mig_status">${options(meta.migStatuses, f.mig_status, { empty: 'Taşıma: hepsi' })}</select>`;
       default: return '';
     }

@@ -5,10 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { db, tx, audit, getSetting, setSetting, dailyBackup, snapshot, DB_PATH, MIG_STATUSES, DATA_DIR, BACKUP_DIR, migratedFrom } from './db.js';
 import { importPolicyWorkbook, importInventory } from './importer.js';
 import {
-  serverSummaries, summarizeServer, loadAll, stats, findings, windowHeatmap, runsForDate, monthCalendar, levels,
+  serverSummaries, summarizeServer, loadAll, stats, coverageState, findings, windowHeatmap, runsForDate, monthCalendar, levels,
 } from './analytics.js';
 import { REPORTS, reportData, toXlsx, toPdf } from './reports.js';
 import { detectTape } from '../public/js/lib/schedule.js';
+import { cleanText } from './textClean.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 3000);
@@ -63,7 +64,7 @@ app.get('/api/servers', (req, res) => {
   res.json(list.map(s => {
     const r = byId.get(s.id);
     return {
-      ...s, domain: r.domain, ip: r.ip, vcpu: r.vcpu, ram_gb: r.ram_gb, disk_gb: r.disk_gb, owner_team: r.owner_team, source: r.source,
+      ...s, coverage: coverageState(s), domain: r.domain, ip: r.ip, vcpu: r.vcpu, ram_gb: r.ram_gb, disk_gb: r.disk_gb, owner_team: r.owner_team, source: r.source,
       mig_owner: r.mig_owner, mig_target: r.mig_target, mig_first_backup: r.mig_first_backup, mig_restore_test: r.mig_restore_test, mig_notes: r.mig_notes,
       full_lines: undefined, incr_lines: undefined, other_lines: undefined, passive_lines: undefined, tape_lines: s.tape_lines,
     };
@@ -381,6 +382,19 @@ app.use((err, req, res, next) => {
   if (!err.status) console.error(err);
   res.status(err.status || 500).json({ error: err.message || 'Sunucu hatası' });
 });
+
+// Önceki sürümle içe aktarılmış metinlerdeki çalışma notlarını bir kez temizle
+if (getSetting('text_cleanup_v1') !== '1') {
+  tx(() => {
+    setSetting('general_policy', cleanText(getSetting('general_policy', '')));
+    const upd = db.prepare('UPDATE exceptions SET text = ? WHERE id = ?');
+    for (const e of db.prepare('SELECT id, text FROM exceptions').all()) {
+      const t = cleanText(e.text);
+      if (t !== e.text) upd.run(t, e.id);
+    }
+    setSetting('text_cleanup_v1', '1');
+  });
+}
 
 try { dailyBackup(); } catch (e) { console.warn('Günlük yedek alınamadı:', e.message); }
 setInterval(() => { try { dailyBackup(); } catch { /* sonraki denemede */ } }, 6 * 3600 * 1000).unref();

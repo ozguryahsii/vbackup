@@ -90,11 +90,12 @@ export function modal({ title, body, foot = '', wide = false, onMount }) {
   back.innerHTML = `<div class="modal ${wide ? 'wide' : ''}" role="dialog" aria-modal="true">
     <div class="modal-head"><h2>${esc(title)}</h2><span class="spacer"></span><button class="icon-btn" data-close aria-label="Kapat">${icon('x')}</button></div>
     <div class="modal-body">${body}</div>${foot ? `<div class="modal-foot">${foot}</div>` : ''}</div>`;
-  const close = () => { back.remove(); document.removeEventListener('keydown', onKey); };
+  const close = () => { back.remove(); document.removeEventListener('keydown', onKey); window.removeEventListener('hashchange', close); };
   const onKey = e => { if (e.key === 'Escape') close(); };
   back.addEventListener('mousedown', e => { if (e.target === back) close(); });
   back.addEventListener('click', e => { if (e.target.closest('[data-close]')) close(); });
   document.addEventListener('keydown', onKey);
+  window.addEventListener('hashchange', close); // modal içindeki bir bağlantıya gidilince kapansın
   root.appendChild(back);
   const m = back.querySelector('.modal');
   onMount?.(m, close);

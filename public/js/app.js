@@ -1,6 +1,7 @@
 import { api, state, loadMeta } from './lib/api.js';
 import { $, $$, esc, hydrateIcons, icon, debounce, trLower } from './lib/ui.js';
 import { destroyCharts, hideTip } from './lib/charts.js';
+import { resetDrillCache } from './lib/drill.js';
 
 const routes = [
   { re: /^\/?$/, name: 'dashboard', title: 'Gösterge Paneli', load: () => import('./pages/dashboard.js') },
@@ -27,9 +28,13 @@ async function router() {
   const raw = location.hash.replace(/^#/, '') || '/';
   const [path, qs] = raw.split('?');
   const params = new URLSearchParams(qs || '');
-  const view = $('#view');
+  // Her geçişte boş bir kapsayıcı: önceki sayfanın olay dinleyicileri birikmesin
+  const old = $('#view');
+  const view = old.cloneNode(false);
+  old.replaceWith(view);
   destroyCharts();
   hideTip();
+  resetDrillCache();
   current?.destroy?.();
   current = null;
   $('#sidebar').classList.remove('open');
@@ -155,6 +160,12 @@ async function boot() {
   await reloadMeta();
   initSearch();
   window.addEventListener('hashchange', router);
+  // Başka bir sekmede/pencerede değişiklik yapılıp geri dönülünce salt-okunur ekranları tazele
+  const READ_ONLY = /^#\/(stats|calendar|risks|reports)?(\/|\?|$)/;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || document.querySelector('.modal-back')) return;
+    if (READ_ONLY.test(location.hash || '#/')) router();
+  });
   router();
 }
 boot();

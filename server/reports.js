@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import PdfPrinter from 'pdfmake';
 import { createRequire } from 'node:module';
 import { db, getSetting } from './db.js';
-import { serverSummaries, loadAll, stats, findings, generalPolicyText } from './analytics.js';
+import { serverSummaries, loadAll, stats, findings, generalPolicyText, coverageState } from './analytics.js';
 import { typeLabel, retentionText, rpoText, describeWhen, describeWindows } from '../public/js/lib/schedule.js';
 
 const require = createRequire(import.meta.url);
@@ -27,7 +27,7 @@ function serverFilter(f) {
     (!f.environment || (s.environment || 'Belirtilmemiş') === f.environment) &&
     (!f.criticality || (s.criticality || 'Belirtilmemiş') === f.criticality) &&
     (!f.tape || s.tape_status === f.tape) &&
-    (!f.covered || (f.covered === 'yes' ? s.covered : !s.covered)) &&
+    (!f.covered || (f.covered === 'yes' ? s.covered : f.covered === 'any' ? !s.covered : coverageState(s) === (f.covered === 'no' ? 'uncovered' : f.covered))) &&
     (!f.policy_type || s.types.includes(f.policy_type)) &&
     (!f.mig_status || s.mig_status === f.mig_status) &&
     match(f.q, s.hostname, s.description, s.policy_names.join(' '));
@@ -45,7 +45,7 @@ export const REPORTS = [
   { id: 'genel', title: 'Genel Politika', description: 'Politikanın genel özeti, yöntemler, desenler ve güncel sayılar.' },
   { id: 'sunucu', title: 'Sunucu Bazlı Politika', description: 'Her sunucu için hangi yöntemle, hangi sıklıkta, ne kadar saklamayla yedeklendiği.' },
   { id: 'kaset', title: 'Kasete Çıkan Sunucular', description: 'SLP (kaset) schedule\'ı olan sunucular ve kasete çıkış takvimi.' },
-  { id: 'detay', title: 'Detay (Sunucu-Policy-Schedule)', description: 'Sunucu × policy × schedule kırılımında tam döküm.' },
+  { id: 'detay', title: 'Detay (Sunucu-Policy-Schedule)', description: 'Sunucu × policy × schedule kırılımında tam liste.' },
   { id: 'policy', title: 'Policy Listesi', description: 'Tüm policy\'ler, istemcileri, içerikleri ve schedule\'ları.' },
   { id: 'istisna', title: 'İstisnalar ve Notlar', description: 'Sunucu ve genel bazlı istisna/not kayıtları.' },
   { id: 'ozet', title: 'Özet Sayılar', description: 'Gösterge sayıları (kapsam, kaset, policy adetleri).' },
@@ -69,7 +69,7 @@ const SERVER_COLS = [
   { key: 'incr', label: 'DİSK – Incremental / Log', width: 60, pdf: true },
   { key: 'tape', label: 'Kasete çıkıyor mu?', width: 12, pdf: true },
   { key: 'tape_lines', label: 'Kaset (SLP) schedule', width: 50, pdf: true },
-  { key: 'tape_ret', label: 'Kaset retention (döküm)', width: 18 },
+  { key: 'tape_ret', label: 'Kaset saklama (retention)', width: 18 },
   { key: 'other', label: 'Diğer schedule\'lar (App/Vault)', width: 40 },
   { key: 'rpo', label: 'Tahmini RPO', width: 10, pdf: true },
   { key: 'passive', label: 'Pasif policy\'ler', width: 40 },
@@ -116,7 +116,7 @@ function buildReport(id, f = {}) {
           { key: 'active', label: 'Policy aktif mi', width: 12, pdf: true }, { key: 'method', label: 'Yöntem', width: 28 },
           { key: 'schedule', label: 'SLP schedule', width: 14, pdf: true }, { key: 'type', label: 'Schedule tipi', width: 14 },
           { key: 'when', label: 'Ne zaman', width: 36, pdf: true }, { key: 'window', label: 'Pencere', width: 26, pdf: true },
-          { key: 'retention', label: 'Retention (döküm)', width: 16, pdf: true },
+          { key: 'retention', label: 'Saklama (retention)', width: 16, pdf: true },
         ], rows,
       };
     }
