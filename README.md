@@ -16,7 +16,7 @@ npm start            # → http://localhost:3000
 ```
 
 İlk açılışta uygulama boş gelir ve Excel dosyasını ister. Politika Excel'ini sürükleyip bırakmanız yeterli.
-Alternatif olarak dosyayı `data/seed/` klasörüne koyup `npm run seed` çalıştırabilirsiniz.
+Alternatif: `npm run seed -- /yol/dosya.xlsx`.
 
 Bilgisayar açıldığında otomatik başlasın isterseniz:
 
@@ -27,12 +27,41 @@ Bilgisayar açıldığında otomatik başlasın isterseniz:
 > Uygulama varsayılan olarak yalnızca `127.0.0.1` üzerinden dinler. Ağdaki başka bir bilgisayardan erişmek gerekirse
 > `HOST=0.0.0.0 npm start` ile başlatın (kimlik doğrulama yoktur; güvenli bir ağda kullanın).
 
-## Veri nerede?
+## Veri nerede? (uygulamadan ayrı, kalıcı)
 
-- Tüm veri tek dosyada: `data/vbackup.db` (SQLite). `data/` klasörü git'e **eklenmez** — sunucu adları/IP'ler repoya gitmez.
-- Her gün otomatik kopya alınır: `data/backups/` (son 14 gün). Excel'den tam içe aktarma öncesinde de ayrıca kopya alınır.
-- Ayarlar → “Veritabanı yedeğini indir” ile anlık kopya indirilebilir. Geri yüklemek için uygulamayı durdurup dosyayı
-  `data/vbackup.db` olarak kopyalayın.
+Veritabanı uygulama klasörünün **dışında** tutulur. Uygulamayı durdurmak, Mac'i yeniden başlatmak, uygulamayı güncellemek,
+klasörü silip yeniden `git clone` yapmak **veriyi silmez**.
+
+| | Konum (macOS) |
+|---|---|
+| Veritabanı | `~/Library/Application Support/vbackup/vbackup.db` |
+| Otomatik yedekler | `~/Library/Application Support/vbackup/backups/` (her gün, son 14 gün; ayrıca tam içe aktarma, toplu silme ve geri yükleme öncesinde) |
+| Log (otomatik başlatmada) | `~/Library/Logs/vbackup.log` |
+
+Farklı bir konum (ör. iCloud Drive ya da harici disk) için: `VBACKUP_DATA_DIR=/yol/klasör npm start`.
+Konumlar uygulamada Ayarlar → Veritabanı bölümünde de görünür.
+
+Eski sürümde veri uygulama klasöründeki `data/` altındaydı; yeni sürüm ilk açılışta bu veriyi otomatik olarak yeni konuma kopyalar.
+
+### Güncelleme
+
+Yeniden clone'lamaya gerek yok; uygulama klasöründe:
+
+```bash
+./scripts/update.sh        # git pull + npm install (+ otomatik başlatma kuruluysa yeniden başlatır)
+```
+
+### Yedekten geri yükleme
+
+Uygulamayı durdurun (Ctrl+C ya da `./scripts/macos-autostart.sh uninstall`), sonra:
+
+```bash
+npm run restore -- ~/Library/Application\ Support/vbackup/backups/vbackup-2026-10-26.db
+npm run restore -- ~/eski/vbackup      # eski bir uygulama klasöründeki data/vbackup.db'yi alır
+```
+
+Komut, üzerine yazmadan önce mevcut veritabanının da bir kopyasını alır; uygulama çalışıyorsa işlem yapmaz.
+Ayarlar → “Veritabanı yedeğini indir” ile istediğiniz an kopya indirebilirsiniz.
 
 ## Menüler
 

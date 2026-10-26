@@ -109,7 +109,7 @@ export async function render(view, { params }) {
         ${withPolicy.length ? `<p class="badge warn" style="white-space:normal;line-height:1.5;padding:6px 10px">${icon('alert', 13)} ${fmtNum(withPolicy.length)} sunucu policy'lerde istemci olarak tanımlı; bu policy'lerden de çıkarılacak.</p>` : ''}
         <div class="client-list" style="height:auto;max-height:260px">${chosen.map(s => `<label style="cursor:default"><div style="flex:1"><strong>${esc(s.hostname)}</strong>
           <div class="meta">${esc([s.environment, s.description, s.active_count ? `${s.active_count} aktif policy` : ''].filter(Boolean).join(' · '))}</div></div></label>`).join('')}</div>
-        <p class="small muted">İşlemden önce veritabanının bir kopyası <code>data/backups/</code> klasörüne otomatik alınır.</p>`,
+        <p class="small muted">İşlemden önce veritabanının bir kopyası yedek klasörüne otomatik alınır (Ayarlar → Veritabanı).</p>`,
       foot: `<button class="btn" data-close>Vazgeç</button><button class="btn primary" data-ok style="background:var(--critical);border-color:var(--critical)">${icon('trash', 16)}${fmtNum(chosen.length)} sunucuyu sil</button>`,
       onMount: (el, close) => el.querySelector('[data-ok]').addEventListener('click', async e => {
         e.currentTarget.disabled = true;

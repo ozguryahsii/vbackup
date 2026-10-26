@@ -9,14 +9,15 @@ export async function render(view) {
   <div class="grid g2">
     <section class="card"><div class="card-head"><div><h3>Excel'den tam içe aktarma</h3><p>Politika özeti çalışma kitabını (Detay, Policy Listesi, export, İstisnalar, Genel Politika) yükler.</p></div></div>
       <div class="card-body"><p class="small text-2" style="margin-top:0">Mevcut policy, sunucu, schedule ve notlar <strong>silinir</strong> ve dosyadaki verilerle yeniden oluşturulur (taşıma alanları dahil).
-        İşlemden önce veritabanının otomatik bir kopyası <code>data/backups/</code> klasörüne alınır.</p>
+        İşlemden önce veritabanının otomatik bir kopyası yedek klasörüne alınır.</p>
         <button class="btn" data-full>${icon('upload', 16)}Excel seç ve içe aktar</button></div></section>
     <section class="card"><div class="card-head"><div><h3>Envanter güncelle</h3><p>CMDB export dosyası ("Hostname" kolonlu sayfa).</p></div></div>
       <div class="card-body"><p class="small text-2" style="margin-top:0">Sunucular hostname'e göre eşleşir: yeni olanlar eklenir, mevcutların envanter alanları güncellenir. Policy ve taşıma bilgileri korunur.</p>
         <button class="btn" data-inv>${icon('upload', 16)}Envanter dosyası seç</button></div></section>
     <section class="card"><div class="card-head"><div><h3>Veritabanı</h3><p>Tüm veri tek bir SQLite dosyasındadır.</p></div></div>
-      <div class="card-body"><p class="small text-2" style="margin-top:0">Konum: <code>data/vbackup.db</code>. Uygulama her gün otomatik kopya alır (son 14 gün, <code>data/backups/</code>).
-        Geri yüklemek için uygulamayı durdurup yedek dosyayı <code>data/vbackup.db</code> olarak kopyalamanız yeterlidir.</p>
+      <div class="card-body"><p class="small text-2" style="margin-top:0">Veritabanı uygulama klasöründen <strong>ayrı</strong> tutulur; uygulamayı güncellemek, silip yeniden kurmak veriyi etkilemez.</p>
+        <dl class="info small mb"><dt>Veritabanı</dt><dd><code>${esc(meta.dbPath)}</code></dd><dt>Yedekler</dt><dd><code>${esc(meta.backupDir)}</code> (her gün otomatik, son 14 gün)</dd></dl>
+        <p class="small text-2">Geri yüklemek için: uygulamayı durdurun, <code>npm run restore -- &lt;yedek-dosyası.db&gt;</code> çalıştırın ve yeniden başlatın.</p>
         <a class="btn" href="/api/backup/download">${icon('db', 16)}Veritabanı yedeğini indir</a></div></section>
     <section class="card"><div class="card-head"><div><h3>Genel</h3></div></div>
       <div class="card-body"><label class="field">Kurum / proje adı (menü ve PDF altbilgisinde görünür)<input id="cn" value="${esc(meta.companyName || '')}" placeholder="ör. Kurum – Backup Taşıma Projesi"></label>

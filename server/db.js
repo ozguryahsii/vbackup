@@ -1,14 +1,21 @@
 import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { DATA_DIR, DB_PATH, BACKUP_DIR, LEGACY_DATA_DIR } from './paths.js';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const DATA_DIR = process.env.VBACKUP_DATA_DIR || path.join(ROOT, 'data');
-export const DB_PATH = path.join(DATA_DIR, 'vbackup.db');
-export const BACKUP_DIR = path.join(DATA_DIR, 'backups');
+export { DATA_DIR, DB_PATH, BACKUP_DIR, LEGACY_DATA_DIR };
 
 fs.mkdirSync(BACKUP_DIR, { recursive: true });
+
+// Tek seferlik taşıma: yeni konumda veritabanı yoksa ve uygulama klasöründe eski bir veritabanı varsa kopyala
+const legacyDb = path.join(LEGACY_DATA_DIR, 'vbackup.db');
+export let migratedFrom = null;
+if (!fs.existsSync(DB_PATH) && path.resolve(LEGACY_DATA_DIR) !== DATA_DIR && fs.existsSync(legacyDb)) {
+  const old = new DatabaseSync(legacyDb);
+  old.exec(`VACUUM INTO '${DB_PATH.replace(/'/g, "''")}'`); // WAL içeriği dahil tutarlı kopya
+  old.close();
+  migratedFrom = legacyDb;
+}
 
 export const db = new DatabaseSync(DB_PATH);
 db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');

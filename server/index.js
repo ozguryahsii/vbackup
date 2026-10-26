@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { db, tx, audit, getSetting, setSetting, dailyBackup, snapshot, DB_PATH, MIG_STATUSES, DATA_DIR } from './db.js';
+import { db, tx, audit, getSetting, setSetting, dailyBackup, snapshot, DB_PATH, MIG_STATUSES, DATA_DIR, BACKUP_DIR, migratedFrom } from './db.js';
 import { importPolicyWorkbook, importInventory } from './importer.js';
 import {
   serverSummaries, summarizeServer, loadAll, stats, findings, windowHeatmap, runsForDate, monthCalendar, levels,
@@ -46,6 +46,8 @@ app.get('/api/meta', (req, res) => {
     importedAt: getSetting('imported_at'),
     companyName: getSetting('company_name', ''),
     empty: !db.prepare('SELECT COUNT(*) c FROM servers').get().c,
+    dbPath: DB_PATH,
+    backupDir: BACKUP_DIR,
     reports: REPORTS,
   });
 });
@@ -385,7 +387,8 @@ setInterval(() => { try { dailyBackup(); } catch { /* sonraki denemede */ } }, 6
 
 app.listen(PORT, HOST, () => {
   console.log(`vbackup çalışıyor → http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
-  console.log(`Veri klasörü: ${DATA_DIR}`);
+  console.log(`Veritabanı: ${DB_PATH}`);
+  if (migratedFrom) console.log(`Eski konumdaki veritabanı yeni konuma kopyalandı: ${migratedFrom}`);
   if (!fs.existsSync(DB_PATH) || !db.prepare('SELECT COUNT(*) c FROM servers').get().c) {
     console.log('Veritabanı boş: tarayıcıdan Excel dosyasını yükleyin ya da "npm run seed" çalıştırın.');
   }

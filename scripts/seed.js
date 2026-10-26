@@ -1,13 +1,14 @@
 // Kullanım: npm run seed -- [excel-dosyası]
-// Dosya verilmezse data/seed/ klasöründeki ilk .xlsx kullanılır.
+// Dosya verilmezse veri klasöründeki seed/ (ya da uygulama klasöründeki data/seed/) altındaki ilk .xlsx kullanılır.
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR } from '../server/db.js';
+import { DATA_DIR, LEGACY_DATA_DIR } from '../server/db.js';
 import { importPolicyWorkbook } from '../server/importer.js';
 
 let file = process.argv[2];
 if (!file) {
-  const dir = path.join(DATA_DIR, 'seed');
+  const dirs = [path.join(DATA_DIR, 'seed'), path.join(LEGACY_DATA_DIR, 'seed')];
+  const dir = dirs.find(d => fs.existsSync(d) && fs.readdirSync(d).some(f => f.endsWith('.xlsx'))) || dirs[0];
   const found = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.xlsx')) : [];
   if (!found.length) {
     console.error(`Excel dosyası bulunamadı. Dosyayı ${dir} klasörüne koyun ya da yolunu verin: npm run seed -- dosya.xlsx`);
