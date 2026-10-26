@@ -114,11 +114,11 @@ export async function render(view, { match, params }) {
     const avail = servers.filter(s => !selected.has(s.id) && (!env || s.environment === env) && (!unc || !s.covered) &&
       (!q || trLower(`${s.hostname} ${s.description} ${s.ip}`).includes(q)));
     view.querySelector('#avail').innerHTML = avail.slice(0, 300).map(s => `<label data-add="${s.id}"><span style="color:var(--accent)">${icon('plus', 15)}</span><div style="flex:1"><strong>${esc(s.hostname)}</strong> ${critBadge(s.criticality)}
-      <div class="meta">${esc([s.environment, s.description].filter(Boolean).join(' · '))}${s.covered ? ` · ${s.active_count} aktif policy` : ' · yedeksiz'}</div></div></label>`).join('') +
+      <div class="meta">${esc(s.environment || '')}${s.environment ? ' · ' : ''}<span data-notr>${esc(s.description || '')}</span>${s.covered ? ` · ${s.active_count} aktif policy` : ' · yedeksiz'}</div></div></label>`).join('') +
       (avail.length > 300 ? `<div class="empty small">+${avail.length - 300} sunucu daha — aramayı daraltın</div>` : '') || '<div class="empty">Eşleşen sunucu yok</div>';
     const chosen = [...selected].map(id => serverMap.get(id)).filter(Boolean).sort((a, b) => a.hostname.localeCompare(b.hostname));
     view.querySelector('#chosen').innerHTML = chosen.map(s => `<label data-rm="${s.id}"><span style="color:var(--critical)">${icon('x', 15)}</span><div style="flex:1"><strong>${esc(s.hostname)}</strong>
-      <div class="meta">${esc([s.environment, s.description].filter(Boolean).join(' · '))}</div></div></label>`).join('') || '<div class="empty">Henüz sunucu seçilmedi</div>';
+      <div class="meta">${esc(s.environment || '')}${s.environment && s.description ? ' · ' : ''}<span data-notr>${esc(s.description || '')}</span></div></div></label>`).join('') || '<div class="empty">Henüz sunucu seçilmedi</div>';
     view.querySelector('#selcount').textContent = `${selected.size}`;
     drawSummary();
   };

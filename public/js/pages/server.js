@@ -2,7 +2,7 @@ import { api, state, withSystem } from '../lib/api.js';
 import { esc, icon, critBadge, tapeBadge, coverageBadge, migBadge, modal, toast, confirmDialog, relTime, trLower, fmtNum } from '../lib/ui.js';
 import { catColor, bindTips } from '../lib/charts.js';
 import {
-  DAYS_SHORT, DAYS_TR, CATEGORY_LABELS, typeLabel, describeWhen, describeWindows, retentionText, rpoText, runBitmap, runsOn, hhmm,
+  DAYS_SHORT, DAYS_TR, dayName, CATEGORY_LABELS, typeLabel, describeWhen, describeWindows, retentionText, rpoText, runBitmap, runsOn, hhmm,
 } from '../lib/schedule.js';
 import { serverFormModal, migrationFormModal } from '../lib/forms.js';
 import { setCrumbs, navigate, refresh, invalidateSearch } from '../app.js';
@@ -33,7 +33,7 @@ export async function render(view, { match }) {
 
   view.innerHTML = `<div class="page-head">
     <div><div class="row" style="gap:10px"><h1>${esc(s.hostname)}</h1>${coverageBadge(sum)}${critBadge(s.criticality)}${s.environment ? `<span class="badge">${esc(s.environment)}</span>` : ''}${migBadge(s.mig_status)}</div>
-      <p>${esc(s.description || 'Açıklama yok')}${s.source === 'policy' ? ' · <span class="badge warn">Envanterde (CMDB) kaydı yok</span>' : ''}</p></div>
+      <p>${s.description ? `<span data-notr>${esc(s.description)}</span>` : 'Açıklama yok'}${s.source === 'policy' ? ' · <span class="badge warn">Envanterde (CMDB) kaydı yok</span>' : ''}</p></div>
     <div class="actions">
       <button class="btn" data-edit>${icon('edit', 16)}Envanter bilgisi</button>
       <button class="btn" data-addpol>${icon('plus', 16)}Policy'ye ekle</button>
@@ -44,9 +44,9 @@ export async function render(view, { match }) {
     <section class="card span2"><div class="card-head"><div><h3>Bu sunucu nasıl yedekleniyor?</h3><p>Aktif policy'lerden otomatik derlenir</p></div></div>
       <div class="card-body"><div class="answer">${answers.map(([q, a]) => `<div class="q">${esc(q)}</div><div class="a">${esc(a)}</div>`).join('')}</div></div></section>
     <section class="card"><div class="card-head"><h3>Envanter</h3></div><div class="card-body"><dl class="info">
-      ${[['IP', s.ip], ['Domain', s.domain], ['Platform', s.platform], ['İşletim sistemi', s.os], ['Kaynak', `${s.vcpu ?? '—'} vCPU · ${s.ram_gb ?? '—'} GB RAM · ${s.disk_gb ? fmtNum(s.disk_gb) + ' GB disk' : '—'}`],
+      ${[['IP', s.ip], ['Domain', s.domain], ['Platform', s.platform], ['İşletim sistemi', s.os], ['Kapasite', `${s.vcpu ?? '—'} vCPU · ${s.ram_gb ?? '—'} GB RAM · ${s.disk_gb ? fmtNum(s.disk_gb) + ' GB disk' : '—'}`],
         ['Durum', s.status], ['Sahip ekip', s.owner_team], ['Envanter anahtarı', s.inventory_key], ['Notlar', s.notes]]
-        .map(([k, v]) => `<dt>${k}</dt><dd>${esc(v || '—')}</dd>`).join('')}
+        .map(([k, v]) => `<dt>${k}</dt><dd ${k === 'Notlar' ? 'data-notr' : ''}>${esc(v || '—')}</dd>`).join('')}
     </dl></div></section>
 
     <section class="card span2"><div class="card-head"><div><h3>Haftalık yedek penceresi</h3><p>Aktif schedule pencereleri (uygulama tetikli pencereler hariç)</p></div>
@@ -126,7 +126,7 @@ export async function render(view, { match }) {
 function policyCard(p, lv) {
   const others = p.clients.filter(c => c.hostname).length;
   return `<section class="card ${p.active ? '' : 'finding warning'}">
-    <div class="card-head"><div><div class="row" style="gap:8px"><a href="#/policy/${p.id}"><h3>${esc(p.name)}</h3></a>
+    <div class="card-head"><div><div class="row" style="gap:8px"><a href="#/policy/${p.id}"><h3 data-notr>${esc(p.name)}</h3></a>
       ${p.active ? '<span class="badge good">Aktif</span>' : '<span class="badge warn">Pasif</span>'}<span class="badge">${esc(p.policy_type || '—')}</span>
       ${p.backup_system ? `<span class="badge blue">${esc(p.backup_system)}</span>` : ''}</div>
       <p>${esc(p.method || '')}${p.client_name ? ` · istemci adı: <span class="mono">${esc(p.client_name)}</span>` : ''} · Bu policy'de toplam ${p.peers} sunucu</p></div>
@@ -155,7 +155,7 @@ function timelineHTML(scheds, week) {
       let start = w.d * 1440 + w.s;
       let end = w.ed * 1440 + w.e;
       if (end <= start) end += 7 * 1440;
-      const tip = `${s.policy.name} · ${s.name}\n${typeLabel(s.backup_type)}: ${describeWhen(s)}\n${DAYS_TR[w.d]} ${hhmm(w.s)} → ${DAYS_TR[w.ed]} ${hhmm(w.e)}`;
+      const tip = `${s.policy.name} · ${s.name}\n${typeLabel(s.backup_type)}: ${describeWhen(s)}\n${dayName(w.d)} ${hhmm(w.s)} → ${dayName(w.ed)} ${hhmm(w.e)}`;
       for (let t = start; t < end;) {
         const dayIdx = Math.floor(t / 1440) % 7;
         const dayStart = Math.floor(t / 1440) * 1440;

@@ -19,7 +19,7 @@ export async function render(view, { params }) {
       <span class="badge ${r.count ? '' : 'good'}">${r.count ? `${fmtNum(r.count)} kayıt` : `${icon('check', 12)}Temiz`}</span></summary>
     <div class="card-body" style="padding-top:0"><p class="small text-2" style="margin-top:0">${esc(r.description)}</p>
       ${r.count ? `<div class="table-wrap" style="max-height:420px"><table class="data"><thead><tr><th>${r.items[0]?.policy ? 'Policy' : 'Sunucu'}</th><th>Açıklama</th><th>Ortam</th><th>Kritiklik</th><th>Detay</th></tr></thead><tbody>
-        ${r.items.map(it => `<tr><td><a href="#/${it.policy ? 'policy' : 'server'}/${it.id}"><strong>${esc(it.hostname)}</strong></a></td><td class="text-2">${esc(it.description || '—')}</td>
+        ${r.items.map(it => `<tr><td><a href="#/${it.policy ? 'policy' : 'server'}/${it.id}"><strong>${esc(it.hostname)}</strong></a></td><td class="text-2" data-notr>${esc(it.description || '—')}</td>
           <td>${esc(it.environment || '—')}</td><td>${critBadge(it.criticality)}</td><td class="small">${esc(it.detail || '')}</td></tr>`).join('')}
       </tbody></table></div>` : ''}</div></details>`).join('')}</div>`;
   if (open) view.querySelector(`#rule-${open}`)?.scrollIntoView({ block: 'start' });

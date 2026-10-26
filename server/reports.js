@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { db, getSetting } from './db.js';
 import { serverSummaries, loadAll, stats, findings, coverageState } from './analytics.js';
 import { typeLabel, retentionText, rpoText, describeWhen, describeWindows } from '../public/js/lib/schedule.js';
+import { translateText } from '../public/js/lib/i18n.js';
 
 const require = createRequire(import.meta.url);
 const vfs = require('pdfmake/build/vfs_fonts.js');
@@ -76,7 +77,8 @@ const SERVER_COLS = [
 ];
 
 function buildReport(id, f = {}) {
-  const sys = f.system ? { system: f.system } : {};
+  const lang = f.lang || 'tr';
+  const sys = { ...(f.system ? { system: f.system } : {}), lang };
   switch (id) {
     case 'sunucu': {
       const { list } = serverSummaries(sys);
@@ -84,7 +86,7 @@ function buildReport(id, f = {}) {
         no: i + 1, hostname: s.hostname, description: s.description, environment: s.environment, criticality: s.criticality,
         active_count: s.active_count, passive_count: s.passive_count, methods: lines(s.methods), policies: lines(s.policy_names),
         full: lines(s.full_lines), incr: lines(s.incr_lines), tape: s.tape_status, tape_lines: lines(s.tape_lines),
-        tape_ret: lines(s.tape_retention), other: lines(s.other_lines), rpo: rpoText(s.rpo_hours),
+        tape_ret: lines(s.tape_retention), other: lines(s.other_lines), rpo: rpoText(s.rpo_hours, lang),
         passive: lines(s.passive_lines), notes: lines(s.notes),
       }));
       return { columns: SERVER_COLS, rows, pdfSize: 'A3' };
@@ -101,8 +103,8 @@ function buildReport(id, f = {}) {
             if (f.environment && (sv.environment || 'Belirtilmemiş') !== f.environment) continue;
             rows.push({
               hostname: sv.hostname, environment: sv.environment, policy: p.name, policy_type: p.policy_type,
-              active: p.active ? 'EVET' : 'HAYIR (pasif)', method: p.method, schedule: s.name, type: typeLabel(s.backup_type),
-              when: describeWhen(s), window: describeWindows(s.windows), retention: retentionText(s.retention_level, data.levels),
+              active: p.active ? 'EVET' : 'HAYIR (pasif)', method: p.method, schedule: s.name, type: typeLabel(s.backup_type, lang),
+              when: describeWhen(s, lang), window: describeWindows(s.windows, lang), retention: retentionText(s.retention_level, data.levels, lang),
             });
           }
         }
@@ -132,8 +134,8 @@ function buildReport(id, f = {}) {
             rows.push({
               hostname: sv.hostname, client: c.client_name, policy: p.name, policy_type: p.policy_type,
               active: p.active ? 'yes' : 'no', method: p.method, include: p.include_list, schedule: s.name,
-              type: typeLabel(s.backup_type), when: describeWhen(s), window: describeWindows(s.windows),
-              retention: retentionText(s.retention_level, data.levels), tape: s.tape || '',
+              type: typeLabel(s.backup_type, lang), when: describeWhen(s, lang), window: describeWindows(s.windows, lang),
+              retention: retentionText(s.retention_level, data.levels, lang), tape: s.tape || '',
             });
           }
         }
@@ -174,7 +176,7 @@ function buildReport(id, f = {}) {
       const rows = db.prepare(`SELECT e.*, s.hostname FROM exceptions e LEFT JOIN servers s ON s.id = e.server_id
         ORDER BY s.hostname IS NOT NULL, s.hostname, e.id`).all()
         .filter(e => match(f.q, e.hostname, e.text))
-        .map(e => ({ hostname: e.hostname || 'GENEL', text: e.text, resolved: e.resolved ? 'Çözüldü' : 'Açık', created: e.created_at }));
+        .map(e => ({ hostname: e.hostname || translateText('GENEL', lang), text: e.text, resolved: e.resolved ? 'Çözüldü' : 'Açık', created: e.created_at }));
       return {
         columns: [
           { key: 'hostname', label: 'Sunucu', width: 20, pdf: true }, { key: 'text', label: 'İstisna / Not', width: 110, pdf: true },
@@ -213,7 +215,7 @@ function buildReport(id, f = {}) {
           hostname: r.hostname, domain: r.domain, ip: r.ip, environment: r.environment, platform: r.platform, os: r.os,
           vcpu: r.vcpu, ram: r.ram_gb, disk: r.disk_gb, status: r.status, description: r.description, criticality: r.criticality,
           owner: r.owner_team, source: r.source === 'envanter' ? 'Envanter' : r.source === 'policy' ? 'Sadece policy' : 'Manuel',
-          covered: s.covered ? 'EVET' : 'HAYIR', tape: s.tape_status, rpo: rpoText(s.rpo_hours),
+          covered: s.covered ? 'EVET' : 'HAYIR', tape: s.tape_status, rpo: rpoText(s.rpo_hours, lang),
         };
       });
       return {
@@ -277,15 +279,31 @@ function buildReport(id, f = {}) {
 
 const SEV = { critical: 'Kritik', serious: 'Yüksek', warning: 'Uyarı', info: 'Bilgi' };
 
+// Kullanıcı verisi (hostname, açıklama, policy adı, notlar…) ya da zaten seçilen dilde üretilmiş kolonlar çevrilmez
+const NO_TRANSLATE = new Set(['hostname', 'description', 'client', 'policy', 'name', 'policies', 'include', 'clients', 'ip', 'domain', 'os',
+  'owner', 'target', 'notes', 'wave', 'first_backup', 'restore', 'target_date', 'created', 'schedule', 'full', 'incr', 'tape_lines',
+  'other', 'passive', 'schedules', 'when', 'window', 'retention', 'tape_ret', 'methods', 'rpo', 'no', 'value', 'vcpu', 'ram', 'disk', 'clients_count',
+  'active_count', 'passive_count']);
+
 export function reportData(id, filters) {
   const def = REPORTS.find(r => r.id === id);
   if (!def) throw Object.assign(new Error('Bilinmeyen rapor'), { status: 404 });
-  return { ...def, ...buildReport(id, filters) };
+  const rep = { ...def, ...buildReport(id, filters) };
+  if (filters.lang !== 'en') return rep;
+  const tr = v => translateText(v, 'en');
+  return {
+    ...rep,
+    title: tr(rep.title),
+    description: tr(rep.description),
+    columns: rep.columns.map(c => ({ ...c, label: tr(c.label) })),
+    rows: rep.rows.map(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, NO_TRANSLATE.has(k) || typeof v !== 'string' ? v : tr(v)]))),
+  };
 }
 
 function filterText(f) {
   const labels = { system: 'Sistem', environment: 'Ortam', criticality: 'Kritiklik', policy_type: 'Policy tipi', tape: 'Kaset', covered: 'Yedek', active: 'Aktif', mig_status: 'Taşıma', q: 'Arama' };
-  return Object.entries(f).filter(([k, v]) => v && labels[k]).map(([k, v]) => `${labels[k]}: ${v}`).join(' · ');
+  const tr = v => translateText(v, f.lang);
+  return Object.entries(f).filter(([k, v]) => v && labels[k]).map(([k, v]) => `${tr(labels[k])}: ${k === 'q' ? v : tr(v)}`).join(' · ');
 }
 
 // ---------- Excel ----------
@@ -318,9 +336,11 @@ export async function toXlsx(ids, filters) {
 
 // ---------- PDF ----------
 function pdfContent(rep, filters) {
+  const en = filters.lang === 'en';
+  const ft = filterText(filters);
   const content = [
     { text: rep.title, style: 'h1' },
-    { text: `${rep.description}\nOluşturma: ${new Date().toLocaleString('tr-TR')}${filterText(filters) ? ' · Filtre: ' + filterText(filters) : ''} · Kayıt: ${rep.rows.length}`, style: 'meta' },
+    { text: `${rep.description}\n${en ? 'Created' : 'Oluşturma'}: ${new Date().toLocaleString(en ? 'en-GB' : 'tr-TR')}${ft ? ` · ${en ? 'Filter' : 'Filtre'}: ${ft}` : ''} · ${en ? 'Records' : 'Kayıt'}: ${rep.rows.length}`, style: 'meta' },
   ];
   const cols = rep.columns.filter(c => c.pdf);
   const total = cols.reduce((a, c) => a + (c.width || 14), 0);
@@ -364,7 +384,7 @@ export function toPdf(ids, filters) {
     pageMargins: [24, 28, 24, 28],
     defaultStyle: { font: 'Roboto', fontSize: big ? 7 : 7.5 },
     info: { title: reps.map(r => r.title).join(', '), creator: 'vbackup' },
-    footer: (page, pages) => ({ text: `vbackup · ${getSetting('company_name', 'Yedekleme Politikası')} · ${page}/${pages}`, alignment: 'right', fontSize: 7, color: '#898781', margin: [0, 8, 24, 0] }),
+    footer: (page, pages) => ({ text: `vbackup · ${getSetting('company_name', '') || translateText('Yedekleme Politikası', filters.lang)} · ${page}/${pages}`, alignment: 'right', fontSize: 7, color: '#898781', margin: [0, 8, 24, 0] }),
     content,
     styles: {
       h1: { fontSize: 16, bold: true, color: '#0d366b', margin: [0, 0, 0, 2] },

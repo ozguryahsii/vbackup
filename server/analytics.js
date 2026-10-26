@@ -1,5 +1,6 @@
 // Ham tablolardan türetilen görünümler: sunucu bazlı politika, istatistikler, riskler, takvim
 import { db } from './db.js';
+import { translateText } from '../public/js/lib/i18n.js';
 import {
   category, describeSchedule, describeWhen, describeWindows, retentionText, serverRpoHours, rpoBucket,
   RPO_BUCKETS, runsOn, windowsOn, windowRanges, hhmm, isoDate, DAYS_SHORT, weekOfMonth,
@@ -21,6 +22,7 @@ export function levels() {
 
 // filters: { system } — yedekleme sistemi (ör. "NetBackup (Mevcut)")
 export function loadAll(filters = {}) {
+  const lang = filters.lang || 'tr';
   const lv = levels();
   const servers = db.prepare('SELECT * FROM servers ORDER BY hostname').all();
   let policies = db.prepare('SELECT * FROM policies ORDER BY name').all();
@@ -31,7 +33,7 @@ export function loadAll(filters = {}) {
     if (!p) continue;
     const s = parseSchedule(r);
     s.category = category(s);
-    s.description = describeSchedule(s, lv);
+    s.description = describeSchedule(s, lv, lang);
     p.schedules.push(s);
   }
   const byServer = new Map();
@@ -43,15 +45,15 @@ export function loadAll(filters = {}) {
     byServer.get(c.server_id).push(p);
   }
   const excs = db.prepare('SELECT * FROM exceptions ORDER BY id').all();
-  return { servers, policies: [...pmap.values()], byServer, levels: lv, exceptions: excs };
+  return { servers, policies: [...pmap.values()], byServer, levels: lv, exceptions: excs, lang };
 }
 
 const levelDays = (lv, level) => lv.find(l => l.level === level)?.days ?? null;
 
-export function summarizeServer(server, policies, lv) {
+export function summarizeServer(server, policies, lv, lang = 'tr') {
   const active = policies.filter(p => p.active);
   const passive = policies.filter(p => !p.active);
-  const tag = p => `[${p.method || p.policy_type || ''} | ${p.name}]`;
+  const tag = p => `[${translateText(p.method || p.policy_type || '', lang)} | ${p.name}]`;
   const lines = { full: [], incr: [], tape: [], other: [] };
   const activeSchedules = [];
   for (const p of active) {
@@ -69,7 +71,7 @@ export function summarizeServer(server, policies, lv) {
   const retDays = disk.map(s => levelDays(lv, s.retention_level)).filter(x => x !== null);
   const fullRet = disk.filter(s => s.category === 'full').map(s => levelDays(lv, s.retention_level)).filter(x => x !== null);
   const rpo = serverRpoHours(activeSchedules);
-  const methods = [...new Set(active.map(p => p.method || p.policy_type).filter(Boolean))];
+  const methods = [...new Set(active.map(p => translateText(p.method || p.policy_type, lang)).filter(Boolean))];
   const types = [...new Set(active.map(p => p.policy_type).filter(Boolean))];
   const tapeSchedules = activeSchedules.filter(s => s.tape === 'SLP');
   return {
@@ -93,7 +95,7 @@ export function summarizeServer(server, policies, lv) {
     incr_lines: lines.incr,
     tape_lines: lines.tape,
     other_lines: lines.other,
-    tape_retention: tapeSchedules.map(s => `${s.name}: ${retentionText(s.retention_level, lv)}`),
+    tape_retention: tapeSchedules.map(s => `${s.name}: ${retentionText(s.retention_level, lv, lang)}`),
     passive_lines: passive.map(p => `${tag(p)} ` + p.schedules.map(s => `${s.name} → ${s.description}`).join('; ')),
     tape_status: tapeStatus,
     rpo_hours: rpo,
@@ -115,7 +117,7 @@ export function serverSummaries(filters = {}) {
     notes.get(e.server_id).push(e.text);
   }
   const list = data.servers.map(s => {
-    const sum = summarizeServer(s, data.byServer.get(s.id) || [], data.levels);
+    const sum = summarizeServer(s, data.byServer.get(s.id) || [], data.levels, data.lang);
     sum.notes = notes.get(s.id) || [];
     return sum;
   });
@@ -189,7 +191,7 @@ export function stats(filters = {}) {
   const retentionDist = {};
   for (const s of allSchedules) {
     if (s.category === 'app') continue;
-    const lab = retentionText(s.retention_level, data.levels);
+    const lab = retentionText(s.retention_level, data.levels, 'tr');
     retentionDist[lab] ||= { label: lab, level: s.retention_level, sets: { full: new Set(), incr: new Set(), log: new Set(), tape: new Set() } };
     for (const c of s.policy.clients) retentionDist[lab].sets[s.category].add(c.server_id);
   }
@@ -319,10 +321,10 @@ function dateForWeekDay(week, day) {
 }
 
 // Seçilen tarihte çalışacak yedekler
-export function runsForDate(dateStr, { system } = {}) {
+export function runsForDate(dateStr, { system, lang = 'tr' } = {}) {
   const [y, m, d] = dateStr.split('-').map(Number);
   const date = new Date(y, m - 1, d);
-  const data = loadAll({ system });
+  const data = loadAll({ system, lang });
   const servers = new Map(data.servers.map(s => [s.id, s]));
   const out = [];
   for (const p of data.policies) {
@@ -330,13 +332,13 @@ export function runsForDate(dateStr, { system } = {}) {
     for (const s of p.schedules) {
       if (!runsOn(s, date)) continue;
       const wins = windowsOn(s, date).filter(w => w.d === date.getDay());
-      const winTxt = wins.length ? describeWindows(wins) : (s.windows.length ? describeWindows(s.windows) : '—');
+      const winTxt = wins.length ? describeWindows(wins, lang) : (s.windows.length ? describeWindows(s.windows, lang) : '—');
       out.push({
         policy_id: p.id, policy: p.name, policy_type: p.policy_type, schedule: s.name,
         category: s.category, backup_type: s.backup_type, tape: s.tape,
-        when: describeWhen(s), window: winTxt,
+        when: describeWhen(s, lang), window: winTxt,
         start: wins.length ? hhmm(wins[0].s) : null,
-        retention: retentionText(s.retention_level, data.levels),
+        retention: retentionText(s.retention_level, data.levels, lang),
         servers: p.clients.map(c => servers.get(c.server_id)?.hostname).filter(Boolean).sort(),
       });
     }

@@ -1,4 +1,5 @@
 import { api, state, withSystem } from '../lib/api.js';
+import { getLang } from '../lib/i18n.js';
 import { esc, icon, options, fmtNum, debounce } from '../lib/ui.js';
 
 // Hangi rapor hangi filtreleri destekler
@@ -23,7 +24,7 @@ export async function render(view, { match }) {
   view.innerHTML = `<div class="page-head"><div><h1>Raporlar</h1>
     <p>Mevcut politikayı Excel veya PDF olarak dışa aktarın. Raporlar Excel'deki sayfa yapısını izler; “Tüm raporlar” tek dosyada her raporu ayrı sayfa olarak üretir.
     ${state.system ? `Üst menüdeki sistem filtresi uygulanır: <strong>${esc(state.system)}</strong>.` : ''}</p></div>
-    <div class="actions"><a class="btn" id="all-x" href="#">${icon('download', 16)}Tüm raporlar (Excel)</a><a class="btn" id="all-p" href="#">${icon('download', 16)}Tüm raporlar (PDF)</a></div></div>
+    <div class="actions"><label class="row small text-2" style="gap:6px">Rapor dili<select id="rlang"><option value="tr">Türkçe</option><option value="en">English</option></select></label><a class="btn" id="all-x" href="#">${icon('download', 16)}Tüm raporlar (Excel)</a><a class="btn" id="all-p" href="#">${icon('download', 16)}Tüm raporlar (PDF)</a></div></div>
   <div class="grid" style="grid-template-columns:280px minmax(0,1fr)" id="rg">
     <section class="card card-pad report-list" style="align-self:start">${meta.reports.map(r => `<button data-r="${r.id}">${esc(r.title)}<small>${esc(r.description)}</small></button>`).join('')}</section>
     <section class="card"><div class="card-head"><div><h3 id="rt"></h3><p id="rd"></p></div>
@@ -31,9 +32,16 @@ export async function render(view, { match }) {
       <div class="card-body"><div class="filters" id="rf"></div><div id="prev"></div></div></section>
   </div>`;
   if (window.innerWidth < 900) view.querySelector('#rg').style.gridTemplateColumns = 'minmax(0,1fr)';
-  const allUrl = fmt => withSystem('/api/reports/all', { format: fmt });
-  view.querySelector('#all-x').href = allUrl('xlsx');
-  view.querySelector('#all-p').href = allUrl('pdf');
+  // Rapor dili ekran dilinden bağımsız seçilebilir (varsayılan: ekran dili)
+  let rlang = getLang();
+  view.querySelector('#rlang').value = rlang;
+  const allUrl = fmt => withSystem('/api/reports/all', { format: fmt, lang: rlang });
+  const setAll = () => {
+    view.querySelector('#all-x').href = allUrl('xlsx');
+    view.querySelector('#all-p').href = allUrl('pdf');
+  };
+  setAll();
+  view.querySelector('#rlang').addEventListener('change', e => { rlang = e.target.value; setAll(); load(); });
 
   const filterHTML = id => (FILTERS[id] || []).map(k => {
     switch (k) {
@@ -56,11 +64,13 @@ export async function render(view, { match }) {
   };
 
   async function load() {
-    const rep = await api.get(withSystem(`/api/reports/${current}`, { ...params(), limit: 300 }));
+    const rep = await api.get(withSystem(`/api/reports/${current}`, { ...params(), limit: 300, lang: rlang }));
+    // önizleme seçilen rapor dilinde gösterilir (ekran İngilizce olsa bile Türkçe rapor önizlemesi çevrilmez)
+    for (const id of ['#prev', '#rt', '#rd']) view.querySelector(id).toggleAttribute('data-notr', rlang === 'tr');
     view.querySelector('#rt').textContent = rep.title;
     view.querySelector('#rd').textContent = `${rep.description} · ${fmtNum(rep.total)} kayıt${rep.total > rep.rows.length ? ` (önizlemede ilk ${rep.rows.length})` : ''}`;
-    view.querySelector('#dx').href = withSystem(`/api/reports/${current}`, { ...params(), format: 'xlsx' });
-    view.querySelector('#dp').href = withSystem(`/api/reports/${current}`, { ...params(), format: 'pdf' });
+    view.querySelector('#dx').href = withSystem(`/api/reports/${current}`, { ...params(), format: 'xlsx', lang: rlang });
+    view.querySelector('#dp').href = withSystem(`/api/reports/${current}`, { ...params(), format: 'pdf', lang: rlang });
     view.querySelector('#prev').innerHTML = `<div class="table-wrap" style="max-height:62vh"><table class="data"><thead><tr>${rep.columns.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead>
       <tbody>${rep.rows.map(r => `<tr>${rep.columns.map(c => `<td class="${String(r[c.key] ?? '').includes('\n') || String(r[c.key] ?? '').length > 60 ? 'cell-lines' : ''}">${esc(r[c.key] ?? '')}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${rep.columns.length}"><div class="empty">Kayıt yok</div></td></tr>`}</tbody></table></div>
       <p class="small muted">PDF'de okunabilirlik için yalnızca ana kolonlar yer alır; Excel çıktısı tüm kolonları içerir.</p>`;

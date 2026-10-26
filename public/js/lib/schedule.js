@@ -9,6 +9,8 @@
 //   retention_level
 // }
 
+import { getLang, translateText } from './i18n.js';
+
 export const DAYS_TR = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 export const DAYS_SHORT = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 const DAYS_EN = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -29,8 +31,8 @@ export const FREQ_UNITS = [
   { value: 'day', label: 'gün' },
 ];
 
-export function typeLabel(t) {
-  return BACKUP_TYPES.find(b => b.value === t)?.label || t || '—';
+export function typeLabel(t, lang = getLang()) {
+  return translateText(BACKUP_TYPES.find(b => b.value === t)?.label || t || '—', lang);
 }
 
 // Raporlama kategorisi: full | incr | log | app | tape
@@ -115,44 +117,64 @@ export function parseWindows(text) {
   return out;
 }
 
-// ---------- Türkçe açıklamalar ----------
-function joinTR(items) {
+// ---------- Açıklamalar (TR / EN) ----------
+// Tüm açıklama fonksiyonları son parametre olarak dil alır; verilmezse arayüzün seçili dili kullanılır.
+const DAYS_EN_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAYS_EN_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export const dayName = (d, lang = getLang()) => (lang === 'en' ? DAYS_EN_FULL : DAYS_TR)[d];
+export const dayShort = (d, lang = getLang()) => (lang === 'en' ? DAYS_EN_SHORT : DAYS_SHORT)[d];
+
+function joinList(items, lang) {
   if (items.length <= 1) return items.join('');
-  return items.slice(0, -1).join(', ') + ' ve ' + items[items.length - 1];
+  return items.slice(0, -1).join(', ') + (lang === 'en' ? ' and ' : ' ve ') + items[items.length - 1];
 }
 
-function weeksText(weeks) {
-  const all = [1, 2, 3, 4, 5];
+function weeksText(weeks, lang) {
+  const missing = [1, 2, 3, 4, 5].filter(w => !weeks.includes(w));
+  if (lang === 'en') {
+    if (weeks.length === 1) return `week ${weeks[0]} of the month`;
+    if (missing.length === 1) return `weeks ${weeks.join(', ')} of the month (not week ${missing[0]})`;
+    return `weeks ${joinList(weeks.map(String), lang)} of the month`;
+  }
   if (weeks.length === 1) return `Ayın ${weeks[0]}. haftası`;
-  const missing = all.filter(w => !weeks.includes(w));
   if (missing.length === 1) return `Ayın ${weeks.map(w => `${w}.`).join(', ')} haftaları (${missing[0]}. hafta hariç)`;
-  return `Ayın ${joinTR(weeks.map(w => `${w}.`))} haftaları`;
+  return `Ayın ${joinList(weeks.map(w => `${w}.`), lang)} haftaları`;
 }
 
-function daysText(days) {
-  if (days.length === 7) return 'her gün';
+function daysText(days, lang) {
+  if (days.length === 7) return lang === 'en' ? 'every day' : 'her gün';
   if (days.length === 6) {
     const missing = [0, 1, 2, 3, 4, 5, 6].find(d => !days.includes(d));
-    return `${DAYS_TR[missing]} hariç her gün`;
+    return lang === 'en' ? `every day except ${DAYS_EN_FULL[missing]}` : `${DAYS_TR[missing]} hariç her gün`;
   }
-  return joinTR(days.map(d => DAYS_TR[d]));
+  return joinList(days.map(d => dayName(d, lang)), lang);
 }
 
 export function hasCalendar(s) {
   return s.calendar && Object.values(s.calendar).some(w => w && w.length);
 }
 
-export function describeWhen(s) {
-  if (s.backup_type === 'Application Backup') return 'Uygulama tarafından tetiklenir (takvim yok)';
+const cap = x => x.charAt(0).toUpperCase() + x.slice(1);
+
+export function describeWhen(s, lang = getLang()) {
+  const en = lang === 'en';
+  if (s.backup_type === 'Application Backup') return en ? 'Triggered by the application (no calendar)' : 'Uygulama tarafından tetiklenir (takvim yok)';
   const parts = [];
   if (s.freq_every && s.freq_unit) {
     const n = s.freq_every;
     let t;
-    if (s.freq_unit === 'minute') t = `${n} dakikada bir`;
-    else if (s.freq_unit === 'hour') t = n === 1 ? 'Saatte bir' : `${n} saatte bir`;
-    else t = n === 1 ? 'Her gün' : n === 7 ? 'Haftada bir' : n === 30 ? 'Ayda bir' : `${n} günde bir`;
-    const raw = `every ${n} ${s.freq_unit}${n > 1 ? 's' : ''}`;
-    parts.push(`${t} (${raw})`);
+    if (en) {
+      if (s.freq_unit === 'minute') t = `Every ${n} minutes`;
+      else if (s.freq_unit === 'hour') t = n === 1 ? 'Every hour' : `Every ${n} hours`;
+      else t = n === 1 ? 'Every day' : n === 7 ? 'Once a week' : n === 30 ? 'Once a month' : `Every ${n} days`;
+      parts.push(t);
+    } else {
+      if (s.freq_unit === 'minute') t = `${n} dakikada bir`;
+      else if (s.freq_unit === 'hour') t = n === 1 ? 'Saatte bir' : `${n} saatte bir`;
+      else t = n === 1 ? 'Her gün' : n === 7 ? 'Haftada bir' : n === 30 ? 'Ayda bir' : `${n} günde bir`;
+      parts.push(`${t} (every ${n} ${s.freq_unit}${n > 1 ? 's' : ''})`);
+    }
   }
   if (hasCalendar(s)) {
     // aynı hafta kümesine sahip günleri grupla
@@ -166,11 +188,12 @@ export function describeWhen(s) {
     }
     const texts = [];
     for (const g of groups.values()) {
+      const dt = daysText(g.days, lang);
       if (g.weeks.length === 5) {
-        const dt = daysText(g.days);
-        texts.push(dt === 'her gün' ? 'Her gün' : dt.includes('hariç') ? dt.charAt(0).toUpperCase() + dt.slice(1) : `Her ${dt}`);
+        if (en) texts.push(dt.startsWith('every') ? cap(dt) : `Every ${dt}`);
+        else texts.push(dt === 'her gün' ? 'Her gün' : dt.includes('hariç') ? cap(dt) : `Her ${dt}`);
       } else {
-        texts.push(`${weeksText(g.weeks)} ${daysText(g.days)}`);
+        texts.push(en ? `${cap(dt)} in ${weeksText(g.weeks, lang)}` : `${weeksText(g.weeks, lang)} ${dt}`);
       }
     }
     parts.push(texts.join('; '));
@@ -178,16 +201,19 @@ export function describeWhen(s) {
   if (s.dates && s.dates.length) {
     const ds = s.dates.slice().sort();
     const jan1 = ds.every(d => d.endsWith('-01-01'));
+    const range = `${ds[0].slice(0, 4)}–${ds[ds.length - 1].slice(0, 4)}`;
     if (jan1 && ds.length > 1) {
-      parts.push(`Her yıl 1 Ocak (${ds[0].slice(0, 4)}–${ds[ds.length - 1].slice(0, 4)} tarihleri tanımlı)`);
+      parts.push(en ? `Every year on 1 January (${range} dates defined)` : `Her yıl 1 Ocak (${range} tarihleri tanımlı)`);
     } else {
-      parts.push((parts.length ? '; ' : '') + 'Belirli tarih(ler): ' + ds.map(formatDateTR).join(', '));
+      parts.push((parts.length ? '; ' : '') + (en ? 'Specific date(s): ' + ds.join(', ') : 'Belirli tarih(ler): ' + ds.map(formatDateTR).join(', ')));
     }
   }
-  if (!parts.length) parts.push('Takvimde gün seçilmemiş (No days of week entered)');
+  if (!parts.length) parts.push(en ? 'No days of week entered' : 'Takvimde gün seçilmemiş (No days of week entered)');
   let txt = parts.join(' ').replace(' ; ', '; ');
   if (s.excluded && s.excluded.length) {
-    txt += ' — HARİÇ: ' + s.excluded.map(x => `ayın ${x.week}. haftası ${DAYS_TR[x.day]}`).join(', ');
+    txt += en
+      ? ' — EXCEPT: ' + s.excluded.map(x => `${DAYS_EN_FULL[x.day]} in week ${x.week} of the month`).join(', ')
+      : ' — HARİÇ: ' + s.excluded.map(x => `ayın ${x.week}. haftası ${DAYS_TR[x.day]}`).join(', ');
   }
   return txt;
 }
@@ -197,19 +223,21 @@ export function formatDateTR(iso) {
   return `${d}.${m}.${y}`;
 }
 
-export function formatDateLong(date) {
+export function formatDateLong(date, lang = getLang()) {
+  if (lang === 'en') return `${DAYS_EN_FULL[date.getDay()]}, ${date.getDate()} ${MONTHS_EN[date.getMonth()]} ${date.getFullYear()}`;
   return `${date.getDate()} ${MONTHS_TR[date.getMonth()]} ${date.getFullYear()} ${DAYS_TR[date.getDay()]}`;
 }
+export const monthName = (m, lang = getLang()) => (lang === 'en' ? MONTHS_EN : MONTHS_TR)[m];
 
-function windowSpan(w) {
+function windowSpan(w, lang) {
   if (w.ed === w.d) return `${hhmm(w.s)}–${hhmm(w.e)}`;
-  if ((w.d + 1) % 7 === w.ed) return `${hhmm(w.s)} → ertesi gün ${hhmm(w.e)}`;
+  if ((w.d + 1) % 7 === w.ed) return `${hhmm(w.s)} → ${lang === 'en' ? 'next day' : 'ertesi gün'} ${hhmm(w.e)}`;
   return null;
 }
 
-function dayGroupText(days) {
-  if (days.length === 7) return 'her gün';
-  if (days.length === 6) return daysText(days);
+function dayGroupText(days, lang) {
+  if (days.length === 7) return lang === 'en' ? 'every day' : 'her gün';
+  if (days.length === 6) return daysText(days, lang);
   // Pazartesi'den başlayan sıralama ile ardışık aralıkları "Pzt–Cum" şeklinde yaz
   const order = d => (d + 6) % 7;
   const sorted = days.slice().sort((a, b) => order(a) - order(b));
@@ -218,34 +246,35 @@ function dayGroupText(days) {
     const last = runs[runs.length - 1];
     if (last && order(d) === order(last[last.length - 1]) + 1) last.push(d); else runs.push([d]);
   }
-  return runs.map(r => (r.length >= 3 ? `${DAYS_SHORT[r[0]]}–${DAYS_SHORT[r[r.length - 1]]}` : r.map(d => DAYS_SHORT[d]).join(', '))).join(', ');
+  const sh = d => dayShort(d, lang);
+  return runs.map(r => (r.length >= 3 ? `${sh(r[0])}–${sh(r[r.length - 1])}` : r.map(sh).join(', '))).join(', ');
 }
 
-export function describeWindows(windows) {
+export function describeWindows(windows, lang = getLang()) {
   if (!windows || !windows.length) return '—';
-  const spans = windows.map(windowSpan);
+  const spans = windows.map(w => windowSpan(w, lang));
   if (spans.some(x => x === null)) {
-    return windows.map(w => `${DAYS_SHORT[w.d]} ${hhmm(w.s)} → ${DAYS_SHORT[w.ed]} ${hhmm(w.e)}` +
-      (windows.length === 1 ? ' (kesintisiz)' : '')).join(' | ');
+    return windows.map(w => `${dayShort(w.d, lang)} ${hhmm(w.s)} → ${dayShort(w.ed, lang)} ${hhmm(w.e)}` +
+      (windows.length === 1 ? (lang === 'en' ? ' (continuous)' : ' (kesintisiz)') : '')).join(' | ');
   }
   const groups = new Map();
   windows.forEach((w, i) => {
     if (!groups.has(spans[i])) groups.set(spans[i], []);
     groups.get(spans[i]).push(w.d);
   });
-  return [...groups].map(([span, days]) => `${dayGroupText([...new Set(days)])} ${span}`).join(' | ');
+  return [...groups].map(([span, days]) => `${dayGroupText([...new Set(days)], lang)} ${span}`).join(' | ');
 }
 
-export function retentionText(level, levels) {
+export function retentionText(level, levels, lang = getLang()) {
   if (level === null || level === undefined || level === '') return '—';
   const l = levels?.find(x => Number(x.level) === Number(level));
-  return l ? `${l.label} (level ${level})` : `level ${level}`;
+  return l ? `${translateText(l.label, lang)} (level ${level})` : `level ${level}`;
 }
 
-export function describeSchedule(s, levels) {
-  const typeTxt = typeLabel(s.backup_type);
-  const win = s.windows?.length ? ` | Pencere: ${describeWindows(s.windows)}` : '';
-  return `${typeTxt}: ${describeWhen(s)}${win} | Saklama: ${retentionText(s.retention_level, levels)}`;
+export function describeSchedule(s, levels, lang = getLang()) {
+  const en = lang === 'en';
+  const win = s.windows?.length ? ` | ${en ? 'Window' : 'Pencere'}: ${describeWindows(s.windows, lang)}` : '';
+  return `${typeLabel(s.backup_type, lang)}: ${describeWhen(s, lang)}${win} | ${en ? 'Retention' : 'Saklama'}: ${retentionText(s.retention_level, levels, lang)}`;
 }
 
 // ---------- Takvim hesapları ----------
@@ -360,12 +389,13 @@ export function rpoBucket(h) {
 }
 export const RPO_BUCKETS = ['≤ 1 saat', '≤ 6 saat', 'Günlük', 'Haftalık', 'Aylık+', 'Yedek yok'];
 
-export function rpoText(h) {
+export function rpoText(h, lang = getLang()) {
   if (h === null || h === undefined) return '—';
-  if (h < 1) return `${Math.round(h * 60)} dk`;
-  if (h < 24) return `${h} saat`;
-  if (h % 24 === 0 && h < 24 * 60) return `${h / 24} gün`;
-  return `${Math.round(h / 24)} gün`;
+  const en = lang === 'en';
+  if (h < 1) return `${Math.round(h * 60)} ${en ? 'min' : 'dk'}`;
+  if (h < 24) return `${h} ${en ? (h === 1 ? 'hour' : 'hours') : 'saat'}`;
+  const d = h % 24 === 0 && h < 24 * 60 ? h / 24 : Math.round(h / 24);
+  return `${d} ${en ? (d === 1 ? 'day' : 'days') : 'gün'}`;
 }
 
 // Haftalık pencere doluluğu için: pencereyi haftanın dakika aralıklarına çevirir

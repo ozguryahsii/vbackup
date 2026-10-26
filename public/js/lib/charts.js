@@ -1,5 +1,7 @@
 // Chart.js sarmalayıcıları + HTML ısı haritası. Renkler CSS değişkenlerinden okunur (açık/koyu tema).
 import { esc, fmtNum, icon } from './ui.js';
+import { translateText } from './i18n.js';
+const tx = v => translateText(v);
 
 const live = new Set();
 export function destroyCharts() {
@@ -50,7 +52,7 @@ export function barChart(canvas, { labels, datasets, stacked = false, horizontal
   if (max) opts.scales[horizontal ? 'x' : 'y'].max = max;
   if (onClick) {
     opts.onClick = (e, els) => { if (els.length) onClick(labels[els[0].index], { index: els[0].index, datasetIndex: els[0].datasetIndex }); };
-    opts.plugins.tooltip.callbacks.footer = () => 'Listelemek için tıklayın';
+    opts.plugins.tooltip.callbacks.footer = () => tx('Listelemek için tıklayın');
     opts.plugins.tooltip.footerColor = css('--muted');
     opts.plugins.tooltip.footerFont = { weight: 'normal', size: 11 };
     opts.onHover = (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; };
@@ -58,9 +60,9 @@ export function barChart(canvas, { labels, datasets, stacked = false, horizontal
   const chart = new Chart(canvas, {
     type: 'bar',
     data: {
-      labels,
+      labels: labels.map(tx),
       datasets: datasets.map((d, i) => ({
-        label: d.label, data: d.data, backgroundColor: d.color, hoverBackgroundColor: d.color,
+        label: tx(d.label), data: d.data, backgroundColor: d.color, hoverBackgroundColor: d.color,
         borderColor: surface, borderWidth: stacked ? { top: 0, bottom: 0, left: horizontal ? 0 : 0, right: 0, [horizontal ? 'right' : 'top']: 2 } : 0,
         borderSkipped: false,
         borderRadius: stacked ? (i === datasets.length - 1 ? 4 : 0) : 4,
@@ -76,7 +78,7 @@ export function barChart(canvas, { labels, datasets, stacked = false, horizontal
 export function donutChart(canvas, { labels, data, colors, onClick }) {
   const chart = new Chart(canvas, {
     type: 'doughnut',
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: css('--surface'), borderWidth: 2, hoverOffset: 4 }] },
+    data: { labels: labels.map(tx), datasets: [{ data, backgroundColor: colors, borderColor: css('--surface'), borderWidth: 2, hoverOffset: 4 }] },
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '68%', animation: { duration: 250 },
       plugins: { legend: { display: false }, tooltip: baseOptions({}).plugins.tooltip },
@@ -84,7 +86,7 @@ export function donutChart(canvas, { labels, data, colors, onClick }) {
       onHover: onClick ? (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; } : undefined,
     },
   });
-  chart.options.plugins.tooltip.callbacks = { label: c => ` ${c.label}: ${fmtNum(c.parsed)}`, ...(onClick ? { footer: () => 'Listelemek için tıklayın' } : {}) };
+  chart.options.plugins.tooltip.callbacks = { label: c => ` ${c.label}: ${fmtNum(c.parsed)}`, ...(onClick ? { footer: () => tx('Listelemek için tıklayın') } : {}) };
   live.add(chart);
   return chart;
 }

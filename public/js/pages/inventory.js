@@ -45,7 +45,7 @@ export async function render(view, { params }) {
     onRowClick: r => navigate(`#/server/${r.id}`),
     columns: [
       { key: 'hostname', label: 'Sunucu', render: r => `<a href="#/server/${r.id}"><strong>${esc(r.hostname)}</strong></a>${r.source === 'policy' ? ' <span class="badge warn" title="Envanterde kaydı yok">CMDB yok</span>' : ''}<div class="small muted">${esc(r.ip || '')}</div>` },
-      { key: 'description', label: 'Açıklama', render: r => `<span class="text-2">${esc(r.description || '—')}</span>` },
+      { key: 'description', label: 'Açıklama', render: r => `<span class="text-2" data-notr>${esc(r.description || '—')}</span>` },
       { key: 'environment', label: 'Ortam' },
       { key: 'platform', label: 'Platform' },
       { key: 'criticality', label: 'Kritiklik', render: r => critBadge(r.criticality) },
@@ -108,7 +108,7 @@ export async function render(view, { params }) {
       body: `<p style="margin-top:0">Seçilen sunucular envanterden <strong>kalıcı olarak</strong> silinecek; notları ve taşıma bilgileri de silinir.</p>
         ${withPolicy.length ? `<p class="badge warn" style="white-space:normal;line-height:1.5;padding:6px 10px">${icon('alert', 13)} ${fmtNum(withPolicy.length)} sunucu policy'lerde istemci olarak tanımlı; bu policy'lerden de çıkarılacak.</p>` : ''}
         <div class="client-list" style="height:auto;max-height:260px">${chosen.map(s => `<label style="cursor:default"><div style="flex:1"><strong>${esc(s.hostname)}</strong>
-          <div class="meta">${esc([s.environment, s.description, s.active_count ? `${s.active_count} aktif policy` : ''].filter(Boolean).join(' · '))}</div></div></label>`).join('')}</div>
+          <div class="meta">${esc(s.environment || '')}${s.environment ? ' · ' : ''}<span data-notr>${esc(s.description || '')}</span>${s.active_count ? ` · ${s.active_count} aktif policy` : ''}</div></div></label>`).join('')}</div>
         <p class="small muted">İşlemden önce veritabanının bir kopyası yedek klasörüne otomatik alınır (Ayarlar → Veritabanı).</p>`,
       foot: `<button class="btn" data-close>Vazgeç</button><button class="btn primary" data-ok style="background:var(--critical);border-color:var(--critical)">${icon('trash', 16)}${fmtNum(chosen.length)} sunucuyu sil</button>`,
       onMount: (el, close) => el.querySelector('[data-ok]').addEventListener('click', async e => {

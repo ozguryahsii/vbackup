@@ -3,7 +3,9 @@
 export const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-export const fmtNum = n => (n === null || n === undefined ? '—' : Number(n).toLocaleString('tr-TR'));
+import { getLang } from './i18n.js';
+
+export const fmtNum = n => (n === null || n === undefined ? '—' : Number(n).toLocaleString(getLang() === 'en' ? 'en-US' : 'tr-TR'));
 export const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 export const trLower = s => String(s ?? '').toLocaleLowerCase('tr');
 

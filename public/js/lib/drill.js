@@ -35,7 +35,7 @@ export async function showServers({ title, subtitle = '', ids, hostnames }) {
     onRowClick: r => { location.hash = `#/server/${r.id}`; },
     columns: [
       { key: 'hostname', label: 'Sunucu', render: r => `<a href="#/server/${r.id}"><strong>${esc(r.hostname)}</strong></a>` },
-      { key: 'description', label: 'Açıklama', render: r => `<span class="text-2 small">${esc(r.description || '—')}</span>` },
+      { key: 'description', label: 'Açıklama', render: r => `<span class="text-2 small" data-notr>${esc(r.description || '—')}</span>` },
       { key: 'environment', label: 'Ortam' },
       { key: 'criticality', label: 'Kritiklik', render: r => critBadge(r.criticality) },
       { key: 'covered', label: 'Yedek', render: coverageBadge, sort: r => (r.covered ? 1 : 0) },

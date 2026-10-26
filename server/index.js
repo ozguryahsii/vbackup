@@ -25,9 +25,10 @@ const wrap = fn => async (req, res, next) => {
 };
 const filtersOf = q => ({
   system: q.system || '', environment: q.environment || '', criticality: q.criticality || '', policy_type: q.policy_type || '',
-  tape: q.tape || '', covered: q.covered || '', active: q.active || '', mig_status: q.mig_status || '', q: q.q || '',
+  tape: q.tape || '', covered: q.covered || '', active: q.active || '', mig_status: q.mig_status || '', q: q.q || '', lang: q.lang === 'en' ? 'en' : 'tr',
 });
-const sysOf = q => (q.system ? { system: q.system } : {});
+const langOf = q => (q.lang === 'en' ? 'en' : 'tr');
+const sysOf = q => ({ ...(q.system ? { system: q.system } : {}), lang: langOf(q) });
 
 // ---------- Meta ----------
 app.get('/api/meta', (req, res) => {
@@ -80,7 +81,7 @@ app.get('/api/servers/:id', (req, res) => {
   const host = new Map(data.servers.map(s => [s.id, s.hostname]));
   res.json({
     server,
-    summary: summarizeServer(server, pols, data.levels),
+    summary: summarizeServer(server, pols, data.levels, data.lang),
     policies: pols.map(p => ({
       ...p,
       client_name: p.clients.find(c => c.server_id === id)?.client_name,
@@ -188,7 +189,7 @@ app.get('/api/policies', (req, res) => {
 
 app.get('/api/policies/:id', (req, res) => {
   const id = Number(req.params.id);
-  const data = loadAll();
+  const data = loadAll({ lang: langOf(req.query) });
   const p = data.policies.find(x => x.id === id);
   if (!p) return res.status(404).json({ error: 'Policy bulunamadı' });
   const host = new Map(data.servers.map(s => [s.id, s]));

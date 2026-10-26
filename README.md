@@ -88,6 +88,19 @@ Ayarlar → “Veritabanı yedeğini indir” ile istediğiniz an kopya indirebi
 | **Raporlar** | Excel sayfalarıyla aynı yapıda raporlar; filtreli önizleme; **Excel** ve **PDF** çıktısı; “Tüm raporlar” tek dosyada. |
 | **Ayarlar** | Excel'den tam içe aktarma, envanter güncelleme, retention level tablosu, kurum adı, veritabanı yedeği, değişiklik geçmişi. |
 
+### Dil (TR / EN)
+
+Sağ üstteki **TR | EN** düğmesi tüm ekranları İngilizceye çevirir (seçim tarayıcıda hatırlanır). Menüler, başlıklar,
+tablolar, grafik etiketleri, pencereler, bildirimler ve sabit değerler (kritiklik, durum, yöntem, saklama süresi, taşıma
+durumu…) çevrilir; schedule açıklamaları (“Sunday in week 2 of the month…”) doğrudan İngilizce üretilir.
+Raporlar ekranındaki **Rapor dili** seçimiyle, ekran dilinden bağımsız olarak Excel/PDF raporları Türkçe ya da İngilizce alınabilir.
+
+Kullanıcı verisi çevrilmez: sunucu açıklamaları (CMDB), elle yazılan notlar, policy ve sunucu adları, form alanlarındaki
+kayıtlı değerler olduğu gibi kalır.
+
+Çeviriler tek bir sözlükte durur: `public/js/lib/dictionary.js` (Türkçe metin → İngilizce karşılığı; sayı içeren metinler
+için kalıplar). Yeni bir ekran ya da metin eklendiğinde `npm test` sözlükte karşılığı olmayan Türkçe metinleri listeler.
+
 ### Yedekleme sistemi (mevcut ↔ hedef)
 
 Her policy bir “yedekleme sistemine” aittir. İçe aktarılanlar `NetBackup (Mevcut)` olarak gelir. Taşıma için bir policy'yi
@@ -114,7 +127,7 @@ Tam içe aktarma şu sayfaları okur (sayfa adları ya da başlıkları ile bulu
 
 ```bash
 npm run dev    # dosya değişince yeniden başlar
-npm test       # schedule hesaplama testleri
+npm test       # schedule hesaplama ve sözlük (çeviri) testleri
 ```
 
 Yapı: `server/` (Express + yerleşik `node:sqlite`, içe aktarma, analiz, rapor), `public/` (derleme adımı olmayan

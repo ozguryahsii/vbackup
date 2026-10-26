@@ -27,7 +27,7 @@ async function list(el, params) {
     initialSort: { key: 'name', dir: 1 },
     onRowClick: r => navigate(`#/policy/${r.id}`),
     columns: [
-      { key: 'name', label: 'Policy', render: r => `<a href="#/policy/${r.id}"><strong>${esc(r.name)}</strong></a><div class="small muted">${esc(r.backup_system || '')}</div>` },
+      { key: 'name', label: 'Policy', render: r => `<a href="#/policy/${r.id}"><strong data-notr>${esc(r.name)}</strong></a><div class="small muted">${esc(r.backup_system || '')}</div>` },
       { key: 'policy_type', label: 'Tip' },
       { key: 'active', label: 'Durum', render: r => (r.active ? '<span class="badge good">Aktif</span>' : '<span class="badge warn">Pasif</span>'), sort: r => r.active },
       { key: 'method', label: 'Yöntem', render: r => `<span class="small">${esc(r.method || '—')}</span>` },

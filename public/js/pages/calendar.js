@@ -58,7 +58,7 @@ export async function render(view, { params }) {
       (!ql || trLower(r.policy).includes(ql) || r.servers.some(s => trLower(s).includes(ql))));
     view.querySelector('#day').innerHTML = runs.length ? `<ul class="list-plain">${runs.map(r => `<li>
       <div class="row" style="gap:8px"><span class="dot" style="background:${catColor(r.category)}"></span>
-        <a href="#/policy/${r.policy_id}"><strong>${esc(r.policy)}</strong></a><span class="badge">${esc(r.schedule)}</span>
+        <a href="#/policy/${r.policy_id}"><strong data-notr>${esc(r.policy)}</strong></a><span class="badge">${esc(r.schedule)}</span>
         ${r.tape ? `<span class="badge blue">${icon('tape', 12)}Kaset</span>` : ''}<span class="spacer"></span><span class="small muted nowrap">${icon('clock', 13)} ${esc(r.window)}</span></div>
       <div class="small text-2" style="margin:4px 0 0 16px">${esc(typeLabel(r.backup_type))} · ${esc(r.when)} · Saklama: ${esc(r.retention)}</div>
       <div class="small" style="margin:4px 0 0 16px">${r.servers.length > 12 ? `<details><summary>${r.servers.length} sunucu</summary>${r.servers.map(s => esc(s)).join(', ')}</details>` : r.servers.map(s => esc(s)).join(', ')}</div>

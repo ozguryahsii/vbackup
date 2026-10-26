@@ -151,6 +151,10 @@ a.kpi:hover { text-decoration: none; border-color: var(--border-strong); }
 .btn.sm { height: 28px; padding: 0 10px; font-size: 12.5px; }
 .btn:disabled { opacity: .5; cursor: default; }
 .icon-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; }
+.lang-btn { width: auto; padding: 0 4px; }
+.lang-seg { display: inline-flex; gap: 2px; font-size: 11.5px; letter-spacing: .04em; }
+.lang-seg b { padding: 3px 6px; border-radius: 5px; color: var(--muted); }
+.lang-seg b.on { background: var(--accent-soft); color: var(--accent); }
 .icon-btn:hover { background: var(--surface-2); color: var(--text); }
 input[type=text], input[type=search], input[type=number], input[type=date], input[type=time], input:not([type]), select, textarea {
   font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
@@ -160,6 +164,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 textarea { width: 100%; resize: vertical; line-height: 1.5; }
 label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--text-2); font-weight: 500; }
 label.field input, label.field select, label.field textarea { width: 100%; }
+label.field input[type=checkbox] { width: auto; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px 14px; }
 .form-grid .wide { grid-column: 1 / -1; }
 .check { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; font-size: 13px; }

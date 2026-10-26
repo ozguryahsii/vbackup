@@ -2,6 +2,7 @@ import { api, state, loadMeta } from './lib/api.js';
 import { $, $$, esc, hydrateIcons, icon, debounce, trLower } from './lib/ui.js';
 import { destroyCharts, hideTip } from './lib/charts.js';
 import { resetDrillCache } from './lib/drill.js';
+import { setLang, getLang, translateText, translateDom, observeDom, missing } from './lib/i18n.js';
 
 const routes = [
   { re: /^\/?$/, name: 'dashboard', title: 'Gösterge Paneli', load: () => import('./pages/dashboard.js') },
@@ -19,7 +20,7 @@ const routes = [
 
 export function setCrumbs(parts) {
   $('#crumbs').innerHTML = parts.map((p, i) => (p.href && i < parts.length - 1 ? `<a href="${p.href}">${esc(p.label)}</a>` : `<span>${esc(p.label)}</span>`)).join('<span>/</span>');
-  document.title = `${parts[parts.length - 1].label} · vbackup`;
+  document.title = `${translateText(parts[parts.length - 1].label)} · vbackup`;
 }
 
 let current = null;
@@ -109,7 +110,7 @@ async function initSearch() {
     }
     const hits = searchIndex.filter(x => x.t.includes(q)).slice(0, 12);
     sel = 0;
-    box.innerHTML = hits.length ? hits.map((h, i) => `<a href="${h.href}" class="${i === 0 ? 'sel' : ''}"><div>${esc(h.label)}</div><div class="k">${h.k}${h.sub ? ' · ' + esc(h.sub) : ''}</div></a>`).join('') : '<div class="empty">Sonuç yok</div>';
+    box.innerHTML = hits.length ? hits.map((h, i) => `<a href="${h.href}" class="${i === 0 ? 'sel' : ''}"><div data-notr>${esc(h.label)}</div><div class="k">${h.k}${h.sub ? ` · <span data-notr>${esc(h.sub)}</span>` : ''}</div></a>`).join('') : '<div class="empty">Sonuç yok</div>';
     box.hidden = false;
   }, 150);
   inp.addEventListener('input', run);
@@ -148,7 +149,25 @@ export async function reloadMeta() {
   }
 }
 
+function initLang() {
+  let saved = 'tr';
+  try { saved = localStorage.getItem('vb.lang') || 'tr'; } catch { /* yok */ }
+  setLang(saved);
+  document.documentElement.lang = getLang();
+  $$('#lang-btn b').forEach(b => b.classList.toggle('on', b.textContent.toLowerCase() === getLang()));
+  $('#lang-btn').title = getLang() === 'en' ? 'Türkçe’ye geç' : 'Switch to English';
+  $('#lang-btn').addEventListener('click', () => {
+    try { localStorage.setItem('vb.lang', getLang() === 'en' ? 'tr' : 'en'); } catch { /* yok */ }
+    location.reload(); // tüm ekran, grafikler ve sunucudan gelen metinler yeni dille yeniden çizilir
+  });
+  if (getLang() === 'en') {
+    translateDom(document.body);
+    observeDom([document.body]);
+  }
+}
+
 async function boot() {
+  initLang();
   hydrateIcons();
   initTheme();
   $('#menu-btn').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
@@ -168,4 +187,5 @@ async function boot() {
   });
   router();
 }
+window.__i18nMissing = missing;
 boot();

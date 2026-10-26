@@ -1,4 +1,5 @@
 import { toast } from './ui.js';
+import { getLang } from './i18n.js';
 
 export const state = {
   meta: null,
@@ -8,6 +9,7 @@ export const state = {
 export function withSystem(path, extra = {}) {
   const p = new URLSearchParams(extra);
   if (state.system && !p.has('system')) p.set('system', state.system);
+  if (getLang() === 'en' && !p.has('lang')) p.set('lang', 'en');
   for (const [k, v] of [...p]) if (v === '' || v === undefined || v === null) p.delete(k);
   const q = p.toString();
   return q ? `${path}${path.includes('?') ? '&' : '?'}${q}` : path;
@@ -19,6 +21,8 @@ async function request(method, path, body, { raw = false, quiet = false } = {}) 
     if (raw) { opts.body = body; opts.headers['Content-Type'] = 'application/octet-stream'; }
     else { opts.body = JSON.stringify(body); opts.headers['Content-Type'] = 'application/json'; }
   }
+  // GET isteklerinde seçili dil sunucuya iletilir (schedule açıklamaları vb. o dilde üretilir)
+  if (method === 'GET' && getLang() === 'en' && path.startsWith('/api/') && !/[?&]lang=/.test(path)) path += `${path.includes('?') ? '&' : '?'}lang=en`;
   const res = await fetch(path, opts);
   const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
   if (!res.ok) {
