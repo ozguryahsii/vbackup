@@ -1,0 +1,22 @@
+{
+  "name": "vbackup",
+  "version": "1.0.0",
+  "description": "Sunucu bazlı yedekleme (backup) politikası takip uygulaması",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server/index.js",
+    "seed": "node --disable-warning=ExperimentalWarning scripts/seed.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
+  },
+  "dependencies": {
+    "chart.js": "4.4.1",
+    "exceljs": "4.4.0",
+    "express": "4.22.3",
+    "pdfmake": "0.2.15"
+  }
+}

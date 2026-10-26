@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vbackup · Yedekleme Politikası</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231c5cab'/><path d='M8 11h16M8 16h16M8 21h10' stroke='white' stroke-width='3' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="/vendor/chart.js/chart.umd.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#/">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="28" height="28"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M8 11h16M8 16h16M8 21h10" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>
+        </span>
+        <span><strong>vbackup</strong><small id="brand-sub">Yedekleme Politikası</small></span>
+      </a>
+      <nav class="nav" id="nav">
+        <div class="nav-group">Genel</div>
+        <a href="#/" data-route="dashboard"><i data-icon="home"></i>Gösterge Paneli</a>
+        <a href="#/stats" data-route="stats"><i data-icon="chart"></i>İstatistikler</a>
+        <a href="#/calendar" data-route="calendar"><i data-icon="calendar"></i>Yedek Takvimi</a>
+        <div class="nav-group">Tanımlar</div>
+        <a href="#/inventory" data-route="inventory"><i data-icon="server"></i>Envanter</a>
+        <a href="#/policies" data-route="policies"><i data-icon="shield"></i>Politikalar</a>
+        <div class="nav-group">Takip</div>
+        <a href="#/migration" data-route="migration"><i data-icon="truck"></i>Taşıma Takibi</a>
+        <a href="#/risks" data-route="risks"><i data-icon="alert"></i>Uyum &amp; Riskler<span class="nav-badge" id="risk-badge" hidden></span></a>
+        <a href="#/reports" data-route="reports"><i data-icon="file"></i>Raporlar</a>
+        <div class="nav-group">Sistem</div>
+        <a href="#/settings" data-route="settings"><i data-icon="gear"></i>Ayarlar</a>
+      </nav>
+      <div class="sidebar-foot" id="sidebar-foot"></div>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menu-btn" aria-label="Menü"><i data-icon="menu"></i></button>
+        <div class="crumbs" id="crumbs"></div>
+        <div class="topbar-actions">
+          <div class="global-search">
+            <i data-icon="search"></i>
+            <input id="global-search" type="search" placeholder="Sunucu veya policy ara…" autocomplete="off">
+            <div class="search-results" id="search-results" hidden></div>
+          </div>
+          <label class="system-select" title="Yedekleme sistemi filtresi">
+            <select id="system-filter"><option value="">Tüm sistemler</option></select>
+          </label>
+          <button class="icon-btn" id="theme-btn" aria-label="Tema değiştir" title="Tema"><i data-icon="moon"></i></button>
+        </div>
+      </header>
+      <main id="view" class="view" tabindex="-1"></main>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+  <div id="toast-root" class="toasts" aria-live="polite"></div>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
